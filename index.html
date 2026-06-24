@@ -749,8 +749,14 @@
 
         async function fetchMatches() {
             let raw = await matchesRaw(currentLeague);   // saison courante
-            const hasResults = raw.some(m => m.status === 'FINISHED' || LIVE_STATES.indexOf(m.status) !== -1);
-            if (!hasResults) raw = await matchesRaw(currentLeague, fallbackSeason());   // sinon saison précédente
+            let hasResults = raw.some(m => m.status === 'FINISHED' || LIVE_STATES.indexOf(m.status) !== -1);
+
+            // Service royal : jamais de vide. Hors-saison → on remonte les saisons précédentes.
+            const y = new Date().getUTCFullYear();
+            for (let s = y - 1; s >= y - 4 && !hasResults; s--) {
+                raw = await matchesRaw(currentLeague, s);
+                hasResults = raw.some(m => m.status === 'FINISHED' || LIVE_STATES.indexOf(m.status) !== -1);
+            }
 
             const all = raw.map(mapMatch);
             const liveOnes = all.filter(m => m.live);
@@ -760,7 +766,7 @@
             matchesData = liveOnes.concat(finished).slice(0, 15);
             if (matchesData.length === 0) matchesData = upcoming.slice(0, 15);
 
-            if (matchesData.length === 0) matchesContainer.innerHTML = msg('لا توجد مباريات في هذه الفترة');
+            if (matchesData.length === 0) matchesContainer.innerHTML = msg('لا توجد مباريات حالياً');
             else displayMatches();
         }
 
@@ -788,12 +794,20 @@
                     };
                 });
             } else {
-                // 2) saison courante vide (ex: PL pas commencée) → calcul depuis les matchs de la saison précédente
-                const raw = await matchesRaw(currentLeague, fallbackSeason());
-                standingsData = computeTableFromMatches(raw);
+                // 2) Service royal : saison courante vide → calcul depuis les matchs, en remontant
+                //    les saisons précédentes jusqu'à en trouver une jouée (jamais de classement vide).
+                const y = new Date().getUTCFullYear();
+                standingsData = [];
+                for (let s = y - 1; s >= y - 4 && !standingsData.length; s--) {
+                    const raw = await matchesRaw(currentLeague, s);
+                    standingsData = computeTableFromMatches(raw);
+                }
+                if (!standingsData.length) {   // ultime filet : matchs de la saison courante
+                    standingsData = computeTableFromMatches(await matchesRaw(currentLeague));
+                }
             }
 
-            if (standingsData.length === 0) standingsContainer.innerHTML = msg('لا يتوفر الترتيب حالياً');
+            if (standingsData.length === 0) standingsContainer.innerHTML = msg('يتعذّر تحميل الترتيب — حدّث الـ Worker');
             else displayStandings();
         }
 
@@ -848,23 +862,25 @@
             return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
         }
 
-        var _ytCache = {};
-        // Vidéo la plus regardée pour une requête (nécessite YOUTUBE_KEY). Renvoie {id,title} ou null.
-        async function topVideoId(query) {
+        var _ytListCache = {};
+        // Une vidéo AU HASARD parmi les résultats (nécessite YOUTUBE_KEY). Renvoie {id,title} ou null.
+        // La liste est mise en cache ; on tire au sort à chaque clic (vidéo différente sans recharger l'API).
+        async function randomVideoId(query) {
             if (!YOUTUBE_KEY) return null;
-            if (_ytCache[query] !== undefined) return _ytCache[query];
-            try {
-                const u = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=1&order=viewCount&q=' +
-                          encodeURIComponent(query) + '&key=' + YOUTUBE_KEY;
-                const r = await fetch(u);
-                if (!r.ok) { _ytCache[query] = null; return null; }
-                const d = await r.json();
-                const it = d.items && d.items[0];
-                const res = (it && it.id && it.id.videoId)
-                    ? { id: it.id.videoId, title: (it.snippet && it.snippet.title) || '' } : null;
-                _ytCache[query] = res;
-                return res;
-            } catch (e) { _ytCache[query] = null; return null; }
+            let list = _ytListCache[query];
+            if (list === undefined) {
+                try {
+                    const u = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=15&q=' +
+                              encodeURIComponent(query) + '&key=' + YOUTUBE_KEY;
+                    const r = await fetch(u);
+                    list = r.ok ? ((await r.json()).items || []) : [];
+                } catch (e) { list = []; }
+                _ytListCache[query] = list;
+            }
+            if (!list.length) return null;
+            const it = list[Math.floor(Math.random() * list.length)];
+            return (it && it.id && it.id.videoId)
+                ? { id: it.id.videoId, title: (it.snippet && it.snippet.title) || '' } : null;
         }
 
         // ── Source curée embarquée : histoire, palmarès et joueurs cultes des grands clubs.
@@ -933,7 +949,7 @@
             // Une seule vidéo : la plus regardée pour les buts du club
             const goalsQuery = (club && club.yt) || (((meta && meta.name) || name || '') + ' best goals');
             let video = null;
-            try { video = await topVideoId(goalsQuery); } catch (e) {}
+            try { video = await randomVideoId(goalsQuery); } catch (e) {}
 
             renderTeamCard({ id: id, name: name, crest: crest }, meta, club, story, video, goalsQuery);
         }

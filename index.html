@@ -519,6 +519,17 @@
         .tm-loading { text-align: center; padding: 44px 0; color: var(--g3); font-weight: 800; }
         .tm-spinner { width: 54px; height: 54px; margin: 0 auto 16px; border-radius: 50%;
             border: 5px solid rgba(255,215,0,.2); border-top-color: var(--g1); animation: spin 1s linear infinite; }
+
+        /* ── Carte club enrichie : palmarès, légendes, buts ── */
+        .tm-sec-title { text-align:center; color:var(--g2); font-weight:900; letter-spacing:2px; font-size:1.02em; margin:16px 0 8px; text-shadow:0 0 18px rgba(255,215,0,.55); }
+        .tm-cups { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+        .tm-cups span { padding:7px 13px; border-radius:12px; font-weight:800; font-size:.85em; color:#1a0f3a; background:linear-gradient(135deg,var(--g2),var(--g5)); box-shadow:0 4px 14px rgba(255,215,0,.45); }
+        .tm-legends { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+        .tm-legend { text-decoration:none; padding:7px 13px; border-radius:12px; font-weight:800; font-size:.85em; color:var(--g3); background:rgba(255,215,0,.08); border:1px solid rgba(255,215,0,.35); transition:all .2s; }
+        .tm-legend:hover { background:var(--g1); color:var(--navy); }
+        .tm-btns { flex-wrap:wrap; }
+        .tm-btns a.tm-goals { flex:1; min-width:140px; padding:14px; border-radius:14px; text-align:center; text-decoration:none; font-weight:900; letter-spacing:1px; color:#fff; background:linear-gradient(135deg,#e11d2a,#7a0c14); box-shadow:0 6px 20px rgba(225,29,42,.5); transition:transform .2s; }
+        .tm-btns a.tm-goals:hover { transform:translateY(-2px); }
     </style>
 </head>
 <body>
@@ -645,6 +656,7 @@
             try {
                 showStatus('✨ جاري تحميل البيانات الحقيقية...', 'loading');
                 readBtn.disabled = true;
+                _matchCache = {};   // vide le cache à chaque chargement
 
                 await Promise.all([fetchMatches(), fetchStandings()]);
 
@@ -655,31 +667,90 @@
             }
         }
 
-        async function fetchMatches() {
-            const res = await fetch(WORKER_URL + '/matches/' + currentLeague);
-            if (!res.ok) throw new Error('فشل تحميل المباريات (' + res.status + ')');
-            const data = await res.json();
+        // ── Saison de repli : si la "saison courante" est vide (ex: PL déjà
+        //    basculée sur 2026-27 non commencée), on prend la saison précédente.
+        function fallbackSeason() {
+            const now = new Date();
+            return (now.getUTCMonth() < 7) ? (now.getUTCFullYear() - 1) : now.getUTCFullYear();
+        }
 
-            const liveStates = ['IN_PLAY', 'PAUSED'];
-            const all = (data.matches || []).map(m => {
-                const ft = (m.score && m.score.fullTime) ? m.score.fullTime : {};
-                const h = m.homeTeam || {}, a = m.awayTeam || {};
-                return {
-                    home: h.shortName || h.name || '؟',
-                    away: a.shortName || a.name || '؟',
-                    homeId: h.id, awayId: a.id,
-                    homeCrest: h.crest || '', awayCrest: a.crest || '',
-                    homeShort: h.shortName || h.name || '', awayShort: a.shortName || a.name || '',
-                    homeGoals: (ft.home == null) ? '-' : ft.home,
-                    awayGoals: (ft.away == null) ? '-' : ft.away,
-                    status: liveStates.indexOf(m.status) !== -1 ? 'مباشر' : (m.status === 'FINISHED' ? 'انتهت' : 'لم تبدأ'),
-                    date: m.utcDate || ''
+        // Cache des appels /matches (dédoublonne classement + résultats sur un même chargement)
+        var _matchCache = {};
+        function matchesRaw(league, season) {
+            const key = league + ':' + (season || 'cur');
+            if (_matchCache[key]) return _matchCache[key];
+            const u = WORKER_URL + '/matches/' + league + (season ? '?season=' + season : '');
+            _matchCache[key] = fetch(u)
+                .then(r => r.ok ? r.json() : { matches: [] })
+                .then(d => (d && d.matches) || [])
+                .catch(() => []);
+            return _matchCache[key];
+        }
+
+        const LIVE_STATES = ['IN_PLAY', 'PAUSED'];
+        function mapMatch(m) {
+            const ft = (m.score && m.score.fullTime) ? m.score.fullTime : {};
+            const h = m.homeTeam || {}, a = m.awayTeam || {};
+            return {
+                home: h.shortName || h.name || '؟',
+                away: a.shortName || a.name || '؟',
+                homeId: h.id, awayId: a.id,
+                homeCrest: h.crest || '', awayCrest: a.crest || '',
+                homeShort: h.shortName || h.name || '', awayShort: a.shortName || a.name || '',
+                homeGoals: (ft.home == null) ? '-' : ft.home,
+                awayGoals: (ft.away == null) ? '-' : ft.away,
+                status: LIVE_STATES.indexOf(m.status) !== -1 ? 'مباشر' : (m.status === 'FINISHED' ? 'انتهت' : 'لم تبدأ'),
+                date: m.utcDate || '',
+                finished: m.status === 'FINISHED', live: LIVE_STATES.indexOf(m.status) !== -1
+            };
+        }
+
+        // Calcule un classement à partir des matchs terminés (3/1/0 ; départage : différence de buts puis buts pour)
+        function computeTableFromMatches(rawMatches) {
+            const T = {};
+            function ent(team) {
+                const id = team.id;
+                if (!T[id]) T[id] = {
+                    id: id, name: team.shortName || team.name || '؟',
+                    short: team.shortName || team.name || '', crest: team.crest || '',
+                    played: 0, won: 0, draw: 0, lost: 0, gf: 0, ga: 0, points: 0
                 };
+                return T[id];
+            }
+            rawMatches.forEach(m => {
+                if (m.status !== 'FINISHED') return;
+                const ft = (m.score && m.score.fullTime) ? m.score.fullTime : {};
+                if (ft.home == null || ft.away == null || !m.homeTeam || !m.awayTeam) return;
+                const H = ent(m.homeTeam), A = ent(m.awayTeam);
+                H.played++; A.played++;
+                H.gf += ft.home; H.ga += ft.away;
+                A.gf += ft.away; A.ga += ft.home;
+                if (ft.home > ft.away) { H.won++; A.lost++; H.points += 3; }
+                else if (ft.home < ft.away) { A.won++; H.lost++; A.points += 3; }
+                else { H.draw++; A.draw++; H.points++; A.points++; }
             });
+            const arr = Object.keys(T).map(k => T[k]);
+            arr.sort((x, y) =>
+                y.points - x.points ||
+                (y.gf - y.ga) - (x.gf - x.ga) ||
+                y.gf - x.gf ||
+                x.name.localeCompare(y.name)
+            );
+            return arr.map((t, idx) => ({
+                pos: idx + 1, name: t.name, id: t.id, crest: t.crest, short: t.short,
+                played: t.played, points: t.points
+            }));
+        }
 
-            const liveOnes = all.filter(m => m.status === 'مباشر');
-            const finished = all.filter(m => m.status === 'انتهت').sort((a, b) => new Date(b.date) - new Date(a.date));
-            const upcoming = all.filter(m => m.status === 'لم تبدأ').sort((a, b) => new Date(a.date) - new Date(b.date));
+        async function fetchMatches() {
+            let raw = await matchesRaw(currentLeague);   // saison courante
+            const hasResults = raw.some(m => m.status === 'FINISHED' || LIVE_STATES.indexOf(m.status) !== -1);
+            if (!hasResults) raw = await matchesRaw(currentLeague, fallbackSeason());   // sinon saison précédente
+
+            const all = raw.map(mapMatch);
+            const liveOnes = all.filter(m => m.live);
+            const finished = all.filter(m => m.finished).sort((a, b) => new Date(b.date) - new Date(a.date));
+            const upcoming = all.filter(m => !m.finished && !m.live).sort((a, b) => new Date(a.date) - new Date(b.date));
 
             matchesData = liveOnes.concat(finished).slice(0, 15);
             if (matchesData.length === 0) matchesData = upcoming.slice(0, 15);
@@ -689,23 +760,33 @@
         }
 
         async function fetchStandings() {
-            const res = await fetch(WORKER_URL + '/standings/' + currentLeague);
-            if (!res.ok) throw new Error('فشل تحميل الترتيب (' + res.status + ')');
-            const data = await res.json();
+            // 1) classement officiel de la saison courante (exact quand dispo, ex: Espagne)
+            let table = [];
+            try {
+                const res = await fetch(WORKER_URL + '/standings/' + currentLeague);
+                if (res.ok) {
+                    const data = await res.json();
+                    const standings = data.standings || [];
+                    const blk = standings.find(s => s.type === 'TOTAL') || standings[0];
+                    table = (blk && blk.table) || [];
+                }
+            } catch (e) {}
 
-            const standings = data.standings || [];
-            const block = standings.find(s => s.type === 'TOTAL') || standings[0];
-            const table = (block && block.table) || [];
-
-            standingsData = table.map(t => {
-                const tm = t.team || {};
-                return {
-                    pos: t.position,
-                    name: tm.shortName || tm.name || '؟',
-                    id: tm.id, crest: tm.crest || '', short: tm.shortName || tm.name || '',
-                    played: t.playedGames, points: t.points
-                };
-            });
+            const official = table.filter(t => (t.playedGames || 0) > 0);
+            if (official.length) {
+                standingsData = official.map(t => {
+                    const tm = t.team || {};
+                    return {
+                        pos: t.position, name: tm.shortName || tm.name || '؟',
+                        id: tm.id, crest: tm.crest || '', short: tm.shortName || tm.name || '',
+                        played: t.playedGames, points: t.points
+                    };
+                });
+            } else {
+                // 2) saison courante vide (ex: PL pas commencée) → calcul depuis les matchs de la saison précédente
+                const raw = await matchesRaw(currentLeague, fallbackSeason());
+                standingsData = computeTableFromMatches(raw);
+            }
 
             if (standingsData.length === 0) standingsContainer.innerHTML = msg('لا يتوفر الترتيب حالياً');
             else displayStandings();
@@ -756,21 +837,77 @@
 
         /* ===================== CARTE / HISTOIRE DU CLUB ===================== */
 
+        var currentPalmares = [];
+
+        function youtubeSearch(q) {
+            return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
+        }
+
+        // ── Source curée embarquée : histoire, palmarès et joueurs cultes des grands clubs.
+        //    Plus fiable qu'une API pour des infos stables ; Wikipedia = filet pour le reste.
+        const CLUBS = [
+            { k:['manchester united','man united','man utd'], ar:'مانشستر يونايتد', hist:'من أعرق أندية إنجلترا، تأسس سنة 1878. عاش عصره الذهبي مع أليكس فيرغسون وتوّج بدوري الأبطال ثلاث مرات.', cups:['الدوري الإنجليزي ×20','دوري أبطال أوروبا ×3','كأس الاتحاد ×13'], legends:['جورج بست','إريك كانتونا','رايان غيغز','كريستيانو رونالدو','واين روني'], yt:'Manchester United best goals' },
+            { k:['liverpool'], ar:'ليفربول', hist:'أحد أنجح الأندية الإنجليزية والأوروبية، معقله ملعب أنفيلد الأسطوري. توّج بدوري أبطال أوروبا ست مرات.', cups:['الدوري الإنجليزي ×20','دوري أبطال أوروبا ×6','كأس الاتحاد ×8'], legends:['ستيفن جيرارد','كيني دالغليش','محمد صلاح','لويس سواريز','إيان راش'], yt:'Liverpool best goals' },
+            { k:['arsenal'], ar:'أرسنال', hist:'نادي لندني عريق اشتهر بكرته الهجومية. حقق موسماً تاريخياً دون هزيمة سنة 2004 عُرف بـ"الذين لا يُقهرون".', cups:['الدوري الإنجليزي ×13','كأس الاتحاد ×14'], legends:['تييري هنري','دينيس بيركامب','باتريك فييرا','إيان رايت'], yt:'Arsenal best goals' },
+            { k:['chelsea'], ar:'تشيلسي', hist:'نادي لندني صعد إلى القمة الأوروبية في الألفية الجديدة. توّج بدوري الأبطال مرتين (2012 و2021).', cups:['الدوري الإنجليزي ×6','دوري أبطال أوروبا ×2','الدوري الأوروبي ×2'], legends:['فرانك لامبارد','ديدييه دروغبا','جون تيري','إيدن هازارد'], yt:'Chelsea best goals' },
+            { k:['manchester city','man city'], ar:'مانشستر سيتي', hist:'فرض هيمنته على الكرة الإنجليزية الحديثة بأسلوب بيب غوارديولا. توّج بأول لقب أوروبي له سنة 2023.', cups:['الدوري الإنجليزي ×10','دوري أبطال أوروبا ×1','كأس الاتحاد ×7'], legends:['سيرخيو أغويرو','كيفين دي بروين','دافيد سيلفا','فينسنت كومباني'], yt:'Manchester City best goals' },
+            { k:['tottenham','spurs'], ar:'توتنهام', hist:'نادي شمال لندن العريق. أنهى انتظاراً طويلاً للألقاب بتتويجه بالدوري الأوروبي سنة 2025.', cups:['الدوري الأوروبي ×2','كأس الاتحاد ×8','الدوري الإنجليزي ×2'], legends:['جيمي غريفز','غاريث بيل','هاري كين','غلين هودل'], yt:'Tottenham best goals' },
+            { k:['newcastle'], ar:'نيوكاسل', hist:'نادي شمال شرق إنجلترا بجماهير وفية. عاد بقوة إلى المنافسة الأوروبية في السنوات الأخيرة.', cups:['الدوري الإنجليزي ×4','كأس الاتحاد ×6'], legends:['آلان شيرر','كيفين كيغان','بوبي روبسون'], yt:'Newcastle United best goals' },
+
+            { k:['real madrid'], ar:'ريال مدريد', hist:'النادي الأكثر تتويجاً بدوري أبطال أوروبا في التاريخ. يلعب على ملعب سانتياغو برنابيو ويُلقّب بالنادي الملكي.', cups:['دوري أبطال أوروبا ×15','الدوري الإسباني ×36','كأس الملك ×20'], legends:['ألفريدو دي ستيفانو','راؤول','كريستيانو رونالدو','زين الدين زيدان','سيرجيو راموس'], yt:'Real Madrid best goals' },
+            { k:['barcelona','barça','barca'], ar:'برشلونة', hist:'رمز كرة "التيكي تاكا" ومدرسة لاماسيا للمواهب. عاش أمجاده مع جيل غوارديولا وميسي.', cups:['الدوري الإسباني ×28','دوري أبطال أوروبا ×5','كأس الملك ×31'], legends:['ليونيل ميسي','يوهان كرويف','تشافي','أندريس إنييستا','رونالدينيو'], yt:'Barcelona best goals' },
+            { k:['atletico','atlético','atleti'], ar:'أتلتيكو مدريد', hist:'غريم الريال في العاصمة، اشتهر بصلابته الدفاعية مع دييغو سيميوني. توّج بالدوري الأوروبي ثلاث مرات.', cups:['الدوري الإسباني ×11','الدوري الأوروبي ×3','كأس الملك ×10'], legends:['فيرناندو توريس','أنطوان غريزمان','لويس أراغونيس','كوكي'], yt:'Atletico Madrid best goals' },
+            { k:['sevilla'], ar:'إشبيلية', hist:'ملك الدوري الأوروبي بلا منازع، توّج به سبع مرات وهو رقم قياسي.', cups:['الدوري الأوروبي ×7','كأس الملك ×5'], legends:['خيسوس نافاس','إيفان راكيتيتش','فريديريك كانوتيه'], yt:'Sevilla best goals' },
+            { k:['valencia'], ar:'فالنسيا', hist:'أحد كبار الكرة الإسبانية، بلغ نهائي دوري الأبطال مرتين متتاليتين مطلع الألفية.', cups:['الدوري الإسباني ×6','كأس الملك ×8'], legends:['دافيد فيا','دافيد سيلفا','بابلو آيمار'], yt:'Valencia CF best goals' },
+            { k:['athletic'], ar:'أتلتيك بلباو', hist:'نادي الباسك الفريد بسياسته القائمة على اللاعبين المحليين فقط. من أكثر الأندية تتويجاً بكأس الملك.', cups:['الدوري الإسباني ×8','كأس الملك ×24'], legends:['تيلمو زارا','خوليو ساليناس','إيكر مونيين'], yt:'Athletic Bilbao best goals' },
+
+            { k:['juventus'], ar:'يوفنتوس', hist:'"السيدة العجوز"، النادي الأكثر تتويجاً بالدوري الإيطالي وبقاعدة جماهيرية ضخمة.', cups:['الدوري الإيطالي ×36','دوري أبطال أوروبا ×2','كأس إيطاليا ×15'], legends:['أليساندرو ديل بييرو','روبرتو باجيو','جانلويجي بوفون','بافيل نيدفيد'], yt:'Juventus best goals' },
+            { k:['inter','internazionale'], ar:'إنتر ميلان', hist:'بطل أوروبا ثلاث مرات، وآخرها ثلاثية تاريخية سنة 2010 مع مورينيو.', cups:['الدوري الإيطالي ×20','دوري أبطال أوروبا ×3'], legends:['خافيير زانيتي','رونالدو','زلاتان إبراهيموفيتش','دييغو ميليتو'], yt:'Inter Milan best goals' },
+            { k:['ac milan'], ar:'إيه سي ميلان', hist:'من عمالقة أوروبا، توّج بدوري الأبطال سبع مرات وعاش عصراً ذهبياً مع الثلاثي الهولندي.', cups:['الدوري الإيطالي ×19','دوري أبطال أوروبا ×7'], legends:['باولو مالديني','ماركو فان باستن','كاكا','أندريه شيفتشينكو'], yt:'AC Milan best goals' },
+            { k:['napoli'], ar:'نابولي', hist:'نادي الجنوب الإيطالي الذي خلّده مارادونا. عاد إلى التتويج بالدوري بعد عقود من الانتظار.', cups:['الدوري الإيطالي ×4','كأس إيطاليا ×6'], legends:['دييغو مارادونا','ماريك هامشيك','إدينسون كافاني'], yt:'Napoli best goals' },
+            { k:['roma'], ar:'روما', hist:'نادي العاصمة روما، خلّده أسطورته فرانشيسكو توتي الذي قضى مسيرته كاملة معه.', cups:['الدوري الإيطالي ×3','كأس إيطاليا ×9'], legends:['فرانشيسكو توتي','دانييلي دي روسي','باولو روبا'], yt:'AS Roma best goals' },
+            { k:['lazio'], ar:'لاتسيو', hist:'الغريم الثاني في العاصمة. عاش فترة ذهبية أواخر التسعينيات وتوّج بالدوري سنة 2000.', cups:['الدوري الإيطالي ×2','كأس إيطاليا ×7'], legends:['بافيل نيدفيد','أليساندرو نيستا','تشيرو إيموبيلي'], yt:'Lazio best goals' },
+
+            { k:['bayern'], ar:'بايرن ميونخ', hist:'العملاق الألماني المهيمن على البوندسليغا. توّج بدوري أبطال أوروبا ست مرات.', cups:['الدوري الألماني ×33','دوري أبطال أوروبا ×6','كأس ألمانيا ×20'], legends:['فرانتس بكنباور','غيرد مولر','توماس مولر','فيليب لام'], yt:'Bayern Munich best goals' },
+            { k:['dortmund'], ar:'بوروسيا دورتموند', hist:'نادي "الحائط الأصفر" وجماهيره الأسطورية. توّج بدوري أبطال أوروبا سنة 1997.', cups:['الدوري الألماني ×8','دوري أبطال أوروبا ×1'], legends:['ماركو رويس','روبرت ليفاندوفسكي','ماتياس سامر'], yt:'Borussia Dortmund best goals' },
+            { k:['leverkusen'], ar:'باير ليفركوزن', hist:'حقق إنجازاً تاريخياً بأول لقب بوندسليغا سنة 2024 دون أي هزيمة مع تشابي ألونسو.', cups:['الدوري الألماني ×1','كأس ألمانيا ×2'], legends:['ميشائيل بالاك','شتيفان كيسلينغ','فلوريان فيرتز'], yt:'Bayer Leverkusen best goals' },
+            { k:['leipzig'], ar:'لايبزيغ', hist:'نادٍ صاعد بقوة في الكرة الألمانية الحديثة، فرض نفسه ضمن كبار البوندسليغا.', cups:['كأس ألمانيا ×2'], legends:['تيمو فيرنر','داني أولمو','إميل فورسبيرغ'], yt:'RB Leipzig best goals' },
+            { k:['schalke'], ar:'شالكه', hist:'من الأندية الشعبية العريقة في ألمانيا بقاعدة جماهيرية كبيرة في منطقة الرور.', cups:['كأس ألمانيا ×5'], legends:['راؤول','كلاوس فيشر','ميسوت أوزيل'], yt:'Schalke 04 best goals' },
+
+            { k:['paris','psg','saint-germain'], ar:'باريس سان جيرمان', hist:'عملاق العاصمة الفرنسية. توّج بأول لقب دوري أبطال أوروبا في تاريخه سنة 2025.', cups:['الدوري الفرنسي ×12','دوري أبطال أوروبا ×1','كأس فرنسا ×15'], legends:['زلاتان إبراهيموفيتش','كيليان مبابي','رونالدينيو','ماركو فيراتي'], yt:'PSG best goals' },
+            { k:['marseille'], ar:'مارسيليا', hist:'النادي الفرنسي الوحيد الذي توّج بدوري أبطال أوروبا سنة 1993.', cups:['الدوري الفرنسي ×9','دوري أبطال أوروبا ×1'], legends:['جان بيير بابان','ديدييه دروغبا','كريس وادل'], yt:'Olympique Marseille best goals' },
+            { k:['lyon'], ar:'ليون', hist:'هيمن على الدوري الفرنسي بسبعة ألقاب متتالية مطلع الألفية.', cups:['الدوري الفرنسي ×7','كأس فرنسا ×5'], legends:['جونينيو','كريم بنزيما','ألكسندر لاكازيت'], yt:'Olympique Lyonnais best goals' },
+            { k:['monaco'], ar:'موناكو', hist:'نادي الإمارة، اشتهر بصناعة النجوم الشباب ومنهم كيليان مبابي.', cups:['الدوري الفرنسي ×8','كأس فرنسا ×5'], legends:['تييري هنري','كيليان مبابي','لودوفيك جيولي'], yt:'AS Monaco best goals' },
+            { k:['saint-etienne','saint-étienne','etienne'], ar:'سانت إتيان', hist:'النادي الأكثر تتويجاً بالدوري الفرنسي تاريخياً بعشرة ألقاب.', cups:['الدوري الفرنسي ×10','كأس فرنسا ×6'], legends:['ميشيل بلاتيني','دومينيك روشتو','إيف كورو'], yt:'Saint-Etienne best goals' }
+        ];
+
+        function findClub(name, short) {
+            const hay = (String(name || '') + ' ' + String(short || '')).toLowerCase();
+            for (const c of CLUBS) {
+                for (const kw of c.k) { if (hay.indexOf(kw) !== -1) return c; }
+            }
+            return null;
+        }
+
         async function openTeam(id, name, crest, short) {
             window.speechSynthesis.cancel();
             currentStoryText = '';
+            currentPalmares = [];
             teamModal.classList.add('open');
             teamModalBody.innerHTML =
                 '<div class="tm-loading"><div class="tm-spinner"></div>جاري سرد حكاية ' + esc(name || 'الفريق') + '...</div>';
 
-            const [metaR, storyR] = await Promise.allSettled([
-                getTeamMeta(id),
-                getTeamStory(short || name, name)
-            ]);
-            const meta = metaR.status === 'fulfilled' ? metaR.value : null;
-            const story = storyR.status === 'fulfilled' ? storyR.value : null;
+            const club = findClub(name, short);   // source curée embarquée
 
-            renderTeamCard({ id, name, crest }, meta, story);
+            const metaR = await Promise.allSettled([getTeamMeta(id)]);
+            const meta = metaR[0].status === 'fulfilled' ? metaR[0].value : null;
+
+            let story = null;
+            if (!(club && club.hist)) {            // pas d'histoire curée -> filet Wikipedia (silencieux)
+                try { story = await getTeamStory(short || name, name); } catch (e) {}
+            }
+
+            renderTeamCard({ id: id, name: name, crest: crest }, meta, club, story);
         }
 
         function closeTeam() {
@@ -829,17 +966,17 @@
             return null;
         }
 
-        function renderTeamCard(base, meta, story) {
-            const name = (story && story.title) || (meta && meta.name) || base.name || 'الفريق';
+        function renderTeamCard(base, meta, club, story) {
+            const name = (club && club.ar) || (meta && meta.name) || base.name || 'الفريق';
             const founded = meta && meta.founded;
             const colors = meta && meta.colors;
             const venue = meta && meta.venue;
             const crest = base.crest || (meta && meta.crest) || '';
-            const archive = story && story.image;
+            const archive = (!club && story && story.image) ? story.image : '';
 
-            currentStoryText = story && story.extract ? story.extract : '';
+            currentStoryText = (club && club.hist) || (story && story.extract) || '';
+            currentPalmares = (club && club.cups) ? club.cups.slice() : [];
 
-            // Photos "archives" : blason + image Wikipedia, en cadre sepia/or
             let photos = '';
             if (crest) photos += '<div class="tm-frame"><img src="' + esc(crest) + '" alt=""><div class="tm-cap">الشعار</div></div>';
             if (archive) photos += '<div class="tm-frame"><img src="' + esc(archive) + '" alt=""><div class="tm-cap">من الأرشيف</div></div>';
@@ -848,10 +985,25 @@
             if (venue) meta_html += '<span>🏟️ ' + esc(venue) + '</span>';
             if (colors) meta_html += '<span>🎨 ' + esc(colors) + '</span>';
 
+            let palmares = '';
+            if (currentPalmares.length) {
+                palmares = '<div class="tm-sec-title">🏆 الألقاب</div><div class="tm-cups">' +
+                    currentPalmares.map(c => '<span>' + esc(c) + '</span>').join('') + '</div>';
+            }
+
+            let legends = '';
+            if (club && club.legends && club.legends.length) {
+                legends = '<div class="tm-sec-title">⭐ نجوم النادي</div><div class="tm-legends">' +
+                    club.legends.map(L => '<a class="tm-legend" target="_blank" rel="noopener" href="' +
+                        esc(youtubeSearch(L + ' ' + (club.ar || '') + ' أهداف')) + '">▶ ' + esc(L) + '</a>').join('') + '</div>';
+            }
+
             const storyBlock = currentStoryText
-                ? '<div class="tm-story-title">📜 الحكاية</div><div class="tm-story" id="tmStory">' + esc(currentStoryText) + '</div>' +
-                  (story.page ? '<div class="tm-credit">المصدر: ويكيبيديا — <a href="' + esc(story.page) + '" target="_blank" rel="noopener" style="color:var(--g2);">المقال الكامل</a></div>' : '<div class="tm-credit">المصدر: ويكيبيديا</div>')
-                : '<div class="tm-story-title">📜 الحكاية</div>' + msg('الحكاية غير متوفرة حالياً لهذا النادي');
+                ? '<div class="tm-sec-title">📜 الحكاية</div><div class="tm-story">' + esc(currentStoryText) + '</div>'
+                : '<div class="tm-sec-title">📜 الحكاية</div>' + msg('الحكاية غير متوفرة حالياً لهذا النادي');
+
+            const goalsQuery = (club && club.yt) || (((meta && meta.name) || base.name || '') + ' best goals');
+            const goalsBtn = '<a class="tm-goals" target="_blank" rel="noopener" href="' + esc(youtubeSearch(goalsQuery)) + '">⚽ أشهر الأهداف</a>';
 
             teamModalBody.innerHTML =
                 '<div class="tm-head">' +
@@ -861,16 +1013,21 @@
                 (photos ? '<div class="tm-photos">' + photos + '</div>' : '') +
                 (meta_html ? '<div class="tm-meta">' + meta_html + '</div>' : '') +
                 '<div class="tm-line"></div>' +
+                palmares +
+                legends +
                 storyBlock +
                 '<div class="tm-btns">' +
-                    '<button onclick="speakStory()" ' + (currentStoryText ? '' : 'disabled style="opacity:.5;cursor:default;"') + '>🔊 احكِ القصة</button>' +
+                    goalsBtn +
+                    '<button onclick="speakStory()" ' + (currentStoryText || currentPalmares.length ? '' : 'disabled style="opacity:.5;cursor:default;"') + '>🔊 احكِ القصة</button>' +
                     '<button onclick="closeTeam()">✖ إغلاق</button>' +
                 '</div>';
         }
 
         function speakStory() {
-            if (!currentStoryText) return;
-            speakLong(currentStoryText);
+            let t = currentStoryText || '';
+            if (currentPalmares && currentPalmares.length) t += ' أبرز الألقاب: ' + currentPalmares.join('، ') + '.';
+            if (!t.trim()) return;
+            speakLong(t);
             playStadiumAmbiance();
         }
 

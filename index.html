@@ -32,10 +32,11 @@
             min-height: 100vh;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
             padding: 20px;
             position: relative;
-            overflow: hidden;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         /* EXTREME GOLD EFFECTS */
@@ -124,8 +125,8 @@
         /* DECORATIVE CORNERS */
         .corner {
             position: absolute;
-            width: 150px;
-            height: 150px;
+            width: 100px;
+            height: 100px;
             opacity: 0.4;
             pointer-events: none;
             background: radial-gradient(circle, var(--g1), transparent);
@@ -133,10 +134,10 @@
             animation: spin 25s linear infinite;
         }
 
-        .corner-tl { top: -75px; left: -75px; animation-direction: normal; }
-        .corner-tr { top: -75px; right: -75px; animation-direction: reverse; }
-        .corner-bl { bottom: -75px; left: -75px; animation-direction: reverse; }
-        .corner-br { bottom: -75px; right: -75px; animation-direction: normal; }
+        .corner-tl { top: -50px; left: -50px; animation-direction: normal; }
+        .corner-tr { top: -50px; right: -50px; animation-direction: reverse; }
+        .corner-bl { bottom: -50px; left: -50px; animation-direction: reverse; }
+        .corner-br { bottom: -50px; right: -50px; animation-direction: normal; }
 
         @keyframes spin {
             0% { transform: rotate(0deg); }
@@ -147,7 +148,7 @@
         .gold-line-thick {
             height: 6px;
             background: linear-gradient(90deg, transparent, var(--g2), var(--g1), var(--g4), var(--g2), transparent);
-            margin: 35px 0;
+            margin: 18px 0;
             box-shadow: 
                 0 0 40px var(--g1),
                 0 0 80px rgba(255, 215, 0, 0.4),
@@ -158,18 +159,18 @@
         /* QURAN SECTION */
         .quran {
             text-align: center;
-            margin-bottom: 35px;
+            margin-bottom: 20px;
         }
 
         .bismillah {
             font-family: 'Amiri', serif;
-            font-size: 36px;
+            font-size: 26px;
             color: var(--g2);
             text-shadow: 
                 0 0 40px rgba(255, 237, 78, 1),
                 0 0 80px rgba(255, 215, 0, 0.9),
                 0 0 120px rgba(255, 215, 0, 0.6);
-            margin-bottom: 18px;
+            margin-bottom: 11px;
             letter-spacing: 5px;
             font-weight: 700;
             filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
@@ -177,7 +178,7 @@
 
         .ayah {
             font-family: 'Amiri', serif;
-            font-size: 18px;
+            font-size: 14px;
             color: var(--g3);
             line-height: 2.2;
             text-shadow: 0 0 25px rgba(255, 215, 0, 0.5);
@@ -186,7 +187,7 @@
 
         /* TITLE */
         h1 {
-            font-size: 4.5em;
+            font-size: 2.6em;
             color: var(--g2);
             text-shadow: 
                 0 0 50px rgba(255, 237, 78, 1),
@@ -194,7 +195,7 @@
                 0 0 150px rgba(255, 215, 0, 0.5),
                 0 4px 20px rgba(0, 0, 0, 0.6);
             text-align: center;
-            margin: 30px 0;
+            margin: 18px 0;
             font-weight: 900;
             letter-spacing: 4px;
             animation: goldFlare 3s infinite;
@@ -218,8 +219,8 @@
         .subtitle {
             text-align: center;
             color: var(--g2);
-            font-size: 1.4em;
-            margin-bottom: 40px;
+            font-size: 1.05em;
+            margin-bottom: 20px;
             font-weight: 900;
             letter-spacing: 3px;
             text-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
@@ -228,13 +229,13 @@
         /* SELECT */
         select {
             width: 100%;
-            padding: 20px 30px;
-            margin-bottom: 35px;
+            padding: 13px 18px;
+            margin-bottom: 18px;
             background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 237, 78, 0.15));
             border: 3px solid var(--g1);
             border-radius: 18px;
             color: var(--g2);
-            font-size: 1.15em;
+            font-size: 1em;
             font-family: 'Tajawal', sans-serif;
             font-weight: 900;
             cursor: pointer;
@@ -258,9 +259,9 @@
             background: linear-gradient(135deg, rgba(255, 215, 0, 0.12), rgba(255, 237, 78, 0.08));
             border: 3px solid var(--g1);
             border-radius: 20px;
-            padding: 30px;
-            margin-bottom: 35px;
-            max-height: 480px;
+            padding: 16px;
+            margin-bottom: 18px;
+            max-height: 280px;
             overflow-y: auto;
             box-shadow: 
                 inset 0 0 40px rgba(255, 215, 0, 0.12),
@@ -271,8 +272,8 @@
             background: linear-gradient(135deg, rgba(255, 215, 0, 0.18), rgba(255, 237, 78, 0.12));
             border-right: 6px solid var(--g2);
             border-radius: 15px;
-            padding: 20px;
-            margin: 18px 0;
+            padding: 13px;
+            margin: 10px 0;
             cursor: pointer;
             transition: all 0.3s;
             box-shadow: 
@@ -291,15 +292,15 @@
         .match-header {
             display: grid;
             grid-template-columns: 1fr auto 1fr;
-            gap: 25px;
+            gap: 14px;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             font-weight: 900;
             text-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
         }
 
         .score {
-            font-size: 1.8em;
+            font-size: 1.35em;
             color: var(--g2);
             text-align: center;
             text-shadow: 0 0 35px rgba(255, 237, 78, 1);
@@ -320,9 +321,9 @@
             background: linear-gradient(135deg, rgba(255, 215, 0, 0.12), rgba(255, 237, 78, 0.08));
             border: 3px solid var(--g1);
             border-radius: 20px;
-            padding: 30px;
-            margin-bottom: 35px;
-            max-height: 400px;
+            padding: 16px;
+            margin-bottom: 18px;
+            max-height: 280px;
             overflow-y: auto;
             box-shadow: 
                 inset 0 0 40px rgba(255, 215, 0, 0.12),
@@ -331,9 +332,9 @@
 
         .team-row {
             display: grid;
-            grid-template-columns: 50px 1fr 55px 55px;
-            gap: 25px;
-            padding: 18px;
+            grid-template-columns: 44px 1fr 50px 50px;
+            gap: 14px;
+            padding: 11px;
             border-bottom: 2px solid rgba(255, 215, 0, 0.2);
             align-items: center;
             transition: all 0.3s;
@@ -357,16 +358,16 @@
         .buttons {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 25px;
+            gap: 14px;
         }
 
         button {
-            padding: 22px;
+            padding: 15px;
             background: linear-gradient(135deg, var(--g2), var(--g1), var(--g4));
             color: #000;
             border: 2px solid var(--g3);
             border-radius: 18px;
-            font-size: 1.15em;
+            font-size: 1em;
             font-weight: 900;
             cursor: pointer;
             transition: all 0.3s;
@@ -404,8 +405,8 @@
             background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 237, 78, 0.15));
             border-left: 6px solid var(--g2);
             border-radius: 15px;
-            padding: 20px 30px;
-            margin-bottom: 30px;
+            padding: 13px 18px;
+            margin-bottom: 16px;
             display: none;
             color: var(--g3);
             text-align: center;
@@ -478,12 +479,12 @@
 
             <div class="gold-line-thick"></div>
 
-            <h3 style="margin-top: 30px; margin-bottom: 20px; font-size: 1.4em; color: var(--g2); text-align: center; letter-spacing: 3px; font-weight: 900; text-shadow: 0 0 25px rgba(255, 215, 0, 0.6);">🎙️ المباريات المباشرة الفاخرة</h3>
+            <h3 style="margin-top: 22px; margin-bottom: 14px; font-size: 1.15em; color: var(--g2); text-align: center; letter-spacing: 3px; font-weight: 900; text-shadow: 0 0 25px rgba(255, 215, 0, 0.6);">🎙️ المباريات المباشرة الفاخرة</h3>
             <div class="matches" id="matches">
                 <p style="text-align: center; color: var(--g3); font-weight: 800; font-size: 1.05em;">جاري التحميل...</p>
             </div>
 
-            <h3 style="margin-bottom: 20px; font-size: 1.4em; color: var(--g2); text-align: center; letter-spacing: 3px; font-weight: 900; text-shadow: 0 0 25px rgba(255, 215, 0, 0.6);">🏆 الترتيب الفاخر</h3>
+            <h3 style="margin-bottom: 14px; font-size: 1.15em; color: var(--g2); text-align: center; letter-spacing: 3px; font-weight: 900; text-shadow: 0 0 25px rgba(255, 215, 0, 0.6);">🏆 الترتيب الفاخر</h3>
             <div class="standings" id="standings">
                 <p style="text-align: center; color: var(--g3); font-weight: 800; font-size: 1.05em;">جاري التحميل...</p>
             </div>
@@ -517,8 +518,15 @@
         refreshBtn.addEventListener('click', loadData);
         readBtn.addEventListener('click', readScores);
 
-        const API_KEY = '4b4e5fc41d0e4f1c81a87c5ff9579eef';
-        const BASE_URL = 'https://api.football-data.org/v4';
+        // ===== Couche reseau : on passe par TON Cloudflare Worker =====
+        // Le Worker appelle football-data.org cote serveur (pas de blocage CORS),
+        // ajoute l'en-tete CORS, et garde ta cle API cachee.
+        // >>> REMPLACE l'URL ci-dessous par celle de TON worker (garde /v4 a la fin) <<<
+        const BASE_URL = 'https://radio-foot.TON-COMPTE.workers.dev/v4';
+
+        async function apiFetch(url) {
+            return await fetch(url);
+        }
 
         async function loadData() {
             try {
@@ -543,11 +551,9 @@
 
             const fmt = d => d.toISOString().split('T')[0];
 
-            const res = await fetch(`${BASE_URL}/competitions/${currentLeague}/matches?dateFrom=${fmt(from)}&dateTo=${fmt(to)}`, {
-                headers: { 'X-Auth-Token': API_KEY }
-            });
+            const res = await apiFetch(`${BASE_URL}/competitions/${currentLeague}/matches?dateFrom=${fmt(from)}&dateTo=${fmt(to)}`);
 
-            if (!res.ok) throw new Error('فشل تحميل المباريات');
+            if (!res.ok) throw new Error('فشل تحميل المباريات (' + res.status + ')');
             const data = await res.json();
 
             matchesData = (data.matches || []).map(m => ({
@@ -567,11 +573,9 @@
         }
 
         async function fetchStandings() {
-            const res = await fetch(`${BASE_URL}/competitions/${currentLeague}/standings`, {
-                headers: { 'X-Auth-Token': API_KEY }
-            });
+            const res = await apiFetch(`${BASE_URL}/competitions/${currentLeague}/standings`);
 
-            if (!res.ok) throw new Error('فشل تحميل الترتيب');
+            if (!res.ok) throw new Error('فشل تحميل الترتيب (' + res.status + ')');
             const data = await res.json();
 
             const table = data.standings?.[0]?.table || [];

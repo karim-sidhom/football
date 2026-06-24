@@ -530,6 +530,10 @@
         .tm-btns { flex-wrap:wrap; }
         .tm-btns a.tm-goals { flex:1; min-width:140px; padding:14px; border-radius:14px; text-align:center; text-decoration:none; font-weight:900; letter-spacing:1px; color:#fff; background:linear-gradient(135deg,#e11d2a,#7a0c14); box-shadow:0 6px 20px rgba(225,29,42,.5); transition:transform .2s; }
         .tm-btns a.tm-goals:hover { transform:translateY(-2px); }
+
+        .tm-video { position:relative; width:100%; padding-bottom:56.25%; border-radius:12px; overflow:hidden; border:3px solid var(--g1); box-shadow:0 0 25px rgba(255,215,0,.35); margin-top:4px; background:#000; }
+        .tm-video iframe { position:absolute; inset:0; width:100%; height:100%; border:0; }
+        .tm-legends .tm-legend { cursor:default; }
     </style>
 </head>
 <body>
@@ -638,6 +642,7 @@
            Ligues : PL PD SA BL1 FL1
            ============================================================ */
         const WORKER_URL = 'https://radiofoot.lordsidhom78.workers.dev';
+        const YOUTUBE_KEY = '';   // (optionnel) clé YouTube Data API v3 → vidéo intégrée. Vide = bouton recherche.
 
         function msg(t) {
             return '<p style="text-align:center;color:var(--g3);font-weight:800;font-size:1.05em;">' + t + '</p>';
@@ -843,6 +848,25 @@
             return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
         }
 
+        var _ytCache = {};
+        // Vidéo la plus regardée pour une requête (nécessite YOUTUBE_KEY). Renvoie {id,title} ou null.
+        async function topVideoId(query) {
+            if (!YOUTUBE_KEY) return null;
+            if (_ytCache[query] !== undefined) return _ytCache[query];
+            try {
+                const u = 'https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=1&order=viewCount&q=' +
+                          encodeURIComponent(query) + '&key=' + YOUTUBE_KEY;
+                const r = await fetch(u);
+                if (!r.ok) { _ytCache[query] = null; return null; }
+                const d = await r.json();
+                const it = d.items && d.items[0];
+                const res = (it && it.id && it.id.videoId)
+                    ? { id: it.id.videoId, title: (it.snippet && it.snippet.title) || '' } : null;
+                _ytCache[query] = res;
+                return res;
+            } catch (e) { _ytCache[query] = null; return null; }
+        }
+
         // ── Source curée embarquée : histoire, palmarès et joueurs cultes des grands clubs.
         //    Plus fiable qu'une API pour des infos stables ; Wikipedia = filet pour le reste.
         const CLUBS = [
@@ -897,17 +921,21 @@
             teamModalBody.innerHTML =
                 '<div class="tm-loading"><div class="tm-spinner"></div>جاري سرد حكاية ' + esc(name || 'الفريق') + '...</div>';
 
-            const club = findClub(name, short);   // source curée embarquée
+            const club = findClub(name, short);   // palmarès / joueurs cultes / requête buts
 
-            const metaR = await Promise.allSettled([getTeamMeta(id)]);
-            const meta = metaR[0].status === 'fulfilled' ? metaR[0].value : null;
+            const [metaR, storyR] = await Promise.allSettled([
+                getTeamMeta(id),
+                getTeamStory(short || name, name)   // présentation Wikipedia (sans citer la source)
+            ]);
+            const meta = metaR.status === 'fulfilled' ? metaR.value : null;
+            const story = storyR.status === 'fulfilled' ? storyR.value : null;
 
-            let story = null;
-            if (!(club && club.hist)) {            // pas d'histoire curée -> filet Wikipedia (silencieux)
-                try { story = await getTeamStory(short || name, name); } catch (e) {}
-            }
+            // Une seule vidéo : la plus regardée pour les buts du club
+            const goalsQuery = (club && club.yt) || (((meta && meta.name) || name || '') + ' best goals');
+            let video = null;
+            try { video = await topVideoId(goalsQuery); } catch (e) {}
 
-            renderTeamCard({ id: id, name: name, crest: crest }, meta, club, story);
+            renderTeamCard({ id: id, name: name, crest: crest }, meta, club, story, video, goalsQuery);
         }
 
         function closeTeam() {
@@ -966,15 +994,15 @@
             return null;
         }
 
-        function renderTeamCard(base, meta, club, story) {
-            const name = (club && club.ar) || (meta && meta.name) || base.name || 'الفريق';
+        function renderTeamCard(base, meta, club, story, video, goalsQuery) {
+            const name = (story && story.title) || (club && club.ar) || (meta && meta.name) || base.name || 'الفريق';
             const founded = meta && meta.founded;
             const colors = meta && meta.colors;
             const venue = meta && meta.venue;
             const crest = base.crest || (meta && meta.crest) || '';
-            const archive = (!club && story && story.image) ? story.image : '';
+            const archive = (story && story.image) ? story.image : '';
 
-            currentStoryText = (club && club.hist) || (story && story.extract) || '';
+            currentStoryText = (story && story.extract) || (club && club.hist) || '';
             currentPalmares = (club && club.cups) ? club.cups.slice() : [];
 
             let photos = '';
@@ -994,16 +1022,22 @@
             let legends = '';
             if (club && club.legends && club.legends.length) {
                 legends = '<div class="tm-sec-title">⭐ نجوم النادي</div><div class="tm-legends">' +
-                    club.legends.map(L => '<a class="tm-legend" target="_blank" rel="noopener" href="' +
-                        esc(youtubeSearch(L + ' ' + (club.ar || '') + ' أهداف')) + '">▶ ' + esc(L) + '</a>').join('') + '</div>';
+                    club.legends.map(L => '<span class="tm-legend">' + esc(L) + '</span>').join('') + '</div>';
             }
 
             const storyBlock = currentStoryText
                 ? '<div class="tm-sec-title">📜 الحكاية</div><div class="tm-story">' + esc(currentStoryText) + '</div>'
                 : '<div class="tm-sec-title">📜 الحكاية</div>' + msg('الحكاية غير متوفرة حالياً لهذا النادي');
 
-            const goalsQuery = (club && club.yt) || (((meta && meta.name) || base.name || '') + ' best goals');
-            const goalsBtn = '<a class="tm-goals" target="_blank" rel="noopener" href="' + esc(youtubeSearch(goalsQuery)) + '">⚽ أشهر الأهداف</a>';
+            // Une seule vidéo (la plus regardée) intégrée ; sinon repli bouton recherche
+            let videoBlock = '';
+            if (video && video.id) {
+                videoBlock = '<div class="tm-sec-title">⚽ أشهر الأهداف</div>' +
+                    '<div class="tm-video"><iframe src="https://www.youtube.com/embed/' + esc(video.id) +
+                    '" title="" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>';
+            }
+            const goalsBtn = (video && video.id) ? '' :
+                '<a class="tm-goals" target="_blank" rel="noopener" href="' + esc(youtubeSearch(goalsQuery)) + '">⚽ أشهر الأهداف</a>';
 
             teamModalBody.innerHTML =
                 '<div class="tm-head">' +
@@ -1015,6 +1049,7 @@
                 '<div class="tm-line"></div>' +
                 palmares +
                 legends +
+                videoBlock +
                 storyBlock +
                 '<div class="tm-btns">' +
                     goalsBtn +

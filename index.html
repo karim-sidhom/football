@@ -518,32 +518,34 @@
         refreshBtn.addEventListener('click', loadData);
         readBtn.addEventListener('click', readScores);
 
-        // ===== TheSportsDB : API gratuite, autorisee depuis le navigateur (CORS OK) =====
-        // Cle de test publique gratuite "123". Un seul fichier HTML, aucun backend, aucune cle a cacher.
-        const BASE_URL = 'https://www.thesportsdb.com/api/v1/json/123';
+        /* ============================================================
+           DONNEES REELLES & A JOUR via football-data.org
+           ------------------------------------------------------------
+           football-data.org bloque le CORS navigateur ET exige un token
+           secret dans le header => impossible en pur single-file.
+           Solution : un petit proxy Cloudflare Worker GRATUIT qui garde
+           le token et ajoute les en-tetes CORS.
 
-        // Correspondance entre le menu (valeurs PL/PD/SA/BL1/FL1) et les ID de ligue TheSportsDB
-        const LEAGUE_IDS = {
-            PL:  '4328',  // Premier League
-            PD:  '4335',  // La Liga
-            SA:  '4332',  // Serie A
-            BL1: '4331',  // Bundesliga
-            FL1: '4334'   // Ligue 1
-        };
+           ETAPES :
+           1) Deploie le worker fourni (worker.js) sur Cloudflare (gratuit).
+           2) Colle l'URL du worker ci-dessous, SANS slash final.
 
-        // Saison courante du foot europeen (la saison va d'aout a mai)
-        function currentSeason() {
-            const d = new Date();
-            const y = d.getFullYear();
-            // a partir de juillet on est sur la saison y / y+1, sinon y-1 / y
-            return d.getMonth() >= 6 ? `${y}-${y + 1}` : `${y - 1}-${y}`;
-        }
-        function previousSeason() {
-            const [a, b] = currentSeason().split('-').map(Number);
-            return `${a - 1}-${b - 1}`;
+           Le worker expose 2 routes :   /standings/PL    et    /matches/PL
+           Codes ligues = PL / PD / SA / BL1 / FL1  (deja ceux du <select>).
+           ============================================================ */
+        const WORKER_URL = 'https://VOTRE-WORKER.workers.dev';
+
+        function msg(t) {
+            return '<p style="text-align:center;color:var(--g3);font-weight:800;font-size:1.05em;">' + t + '</p>';
         }
 
         async function loadData() {
+            if (WORKER_URL.indexOf('VOTRE-WORKER') !== -1) {
+                showStatus('⚠️ اضبط رابط الـ Worker أولاً', 'error');
+                matchesContainer.innerHTML = msg('لم يتم ضبط مصدر البيانات بعد — راجع WORKER_URL');
+                standingsContainer.innerHTML = msg('لم يتم ضبط مصدر البيانات بعد — راجع WORKER_URL');
+                return;
+            }
             try {
                 showStatus('✨ جاري تحميل البيانات الحقيقية...', 'loading');
                 readBtn.disabled = true;
@@ -558,51 +560,57 @@
         }
 
         async function fetchMatches() {
-            const leagueId = LEAGUE_IDS[currentLeague];
-            const res = await fetch(`${BASE_URL}/eventspastleague.php?id=${leagueId}`);
-
+            const res = await fetch(WORKER_URL + '/matches/' + currentLeague);
             if (!res.ok) throw new Error('فشل تحميل المباريات (' + res.status + ')');
             const data = await res.json();
 
-            const events = data.events || [];
-            matchesData = events.map(m => ({
-                home: m.strHomeTeam,
-                away: m.strAwayTeam,
-                homeGoals: (m.intHomeScore ?? '') === '' ? '-' : m.intHomeScore,
-                awayGoals: (m.intAwayScore ?? '') === '' ? '-' : m.intAwayScore,
-                status: 'انتهت',
-                minute: ''
-            }));
+            const liveStates = ['IN_PLAY', 'PAUSED'];
+            const all = (data.matches || []).map(m => {
+                const ft = (m.score && m.score.fullTime) ? m.score.fullTime : {};
+                return {
+                    home: (m.homeTeam && (m.homeTeam.shortName || m.homeTeam.name)) || '؟',
+                    away: (m.awayTeam && (m.awayTeam.shortName || m.awayTeam.name)) || '؟',
+                    homeGoals: (ft.home == null) ? '-' : ft.home,
+                    awayGoals: (ft.away == null) ? '-' : ft.away,
+                    status: liveStates.indexOf(m.status) !== -1 ? 'مباشر' : (m.status === 'FINISHED' ? 'انتهت' : 'لم تبدأ'),
+                    date: m.utcDate || ''
+                };
+            });
+
+            const liveOnes = all.filter(m => m.status === 'مباشر');
+            const finished = all.filter(m => m.status === 'انتهت')
+                                 .sort((a, b) => new Date(b.date) - new Date(a.date));
+            const upcoming = all.filter(m => m.status === 'لم تبدأ')
+                                 .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            matchesData = liveOnes.concat(finished).slice(0, 15);
+            if (matchesData.length === 0) matchesData = upcoming.slice(0, 15);
 
             if (matchesData.length === 0) {
-                matchesContainer.innerHTML = '<p style="text-align:center;color:var(--g3);font-weight:800;">لا توجد مباريات في هذه الفترة</p>';
+                matchesContainer.innerHTML = msg('لا توجد مباريات في هذه الفترة');
             } else {
                 displayMatches();
             }
         }
 
         async function fetchStandings() {
-            const leagueId = LEAGUE_IDS[currentLeague];
+            const res = await fetch(WORKER_URL + '/standings/' + currentLeague);
+            if (!res.ok) throw new Error('فشل تحميل الترتيب (' + res.status + ')');
+            const data = await res.json();
 
-            // On tente la saison courante, et si le classement est vide on retombe sur la precedente
-            const seasons = [currentSeason(), previousSeason()];
-            let table = [];
-            for (const s of seasons) {
-                const res = await fetch(`${BASE_URL}/lookuptable.php?l=${leagueId}&s=${s}`);
-                if (!res.ok) continue;
-                const data = await res.json();
-                if (data.table && data.table.length) { table = data.table; break; }
-            }
+            const standings = data.standings || [];
+            const block = standings.find(s => s.type === 'TOTAL') || standings[0];
+            const table = (block && block.table) || [];
 
             standingsData = table.map(t => ({
-                pos: t.intRank,
-                name: t.strTeam,
-                played: t.intPlayed,
-                points: t.intPoints
+                pos: t.position,
+                name: (t.team && (t.team.shortName || t.team.name)) || '؟',
+                played: t.playedGames,
+                points: t.points
             }));
 
             if (standingsData.length === 0) {
-                standingsContainer.innerHTML = '<p style="text-align:center;color:var(--g3);font-weight:800;">لا يتوفر الترتيب حالياً</p>';
+                standingsContainer.innerHTML = msg('لا يتوفر الترتيب حالياً');
             } else {
                 displayStandings();
             }
@@ -616,7 +624,7 @@
                         <span class="score">${m.homeGoals} - ${m.awayGoals}</span>
                         <span>${m.away}</span>
                     </div>
-                    <div class="time">${m.status === 'مباشر' ? m.minute + "'" : 'انتهت'}</div>
+                    <div class="time">${m.status === 'مباشر' ? '🔴 مباشر' : m.status}</div>
                 </div>
             `).join('');
         }
@@ -682,8 +690,8 @@
             } catch (e) {}
         }
 
-        function showStatus(msg, type) {
-            status.textContent = msg;
+        function showStatus(msgText, type) {
+            status.textContent = msgText;
             status.className = 'status show ' + type;
             if (type === 'success') setTimeout(() => status.classList.remove('show'), 3500);
         }

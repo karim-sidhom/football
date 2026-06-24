@@ -440,6 +440,85 @@
             border-radius: 10px;
             box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
         }
+
+        /* ============================================================
+           AJOUT : carte "حكاية الفريق" (histoire du club) + photos archives
+           ============================================================ */
+        .clickable-team { cursor: pointer; transition: color .2s, text-shadow .2s; }
+        .clickable-team:hover { color: var(--g2); text-shadow: 0 0 18px rgba(255,215,0,.85); }
+
+        .team-modal {
+            position: fixed; inset: 0; z-index: 50;
+            display: none; align-items: flex-start; justify-content: center;
+            background: rgba(5,3,20,.86); backdrop-filter: blur(10px);
+            padding: 18px; overflow-y: auto;
+        }
+        .team-modal.open { display: flex; animation: tmFade .35s ease; }
+        @keyframes tmFade { from { opacity: 0; } to { opacity: 1; } }
+
+        .team-modal-card {
+            width: 100%; max-width: 640px; margin: 14px 0;
+            background: linear-gradient(135deg, rgba(26,15,58,.99), rgba(42,20,80,.97));
+            border: 3px solid;
+            border-image: linear-gradient(135deg, var(--g2), var(--g1), var(--g4), var(--g2)) 1;
+            border-radius: 24px; padding: 30px 24px;
+            box-shadow: 0 0 80px 25px rgba(255,215,0,.35), inset 0 0 40px rgba(255,215,0,.1), 0 40px 80px rgba(0,0,0,.9);
+            position: relative; animation: tmZoom .45s cubic-bezier(.34,1.56,.64,1);
+        }
+        @keyframes tmZoom { from { transform: scale(.85) translateY(30px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+
+        .tm-close {
+            position: absolute; top: 14px; left: 14px;
+            width: 40px; height: 40px; border-radius: 50%;
+            background: rgba(255,215,0,.12); border: 2px solid var(--g1); color: var(--g2);
+            font-size: 1.15em; font-weight: 900; cursor: pointer; line-height: 1;
+        }
+        .tm-close:hover { background: var(--g1); color: var(--navy); }
+
+        .tm-head { text-align: center; margin-bottom: 10px; }
+        .tm-name { font-family: 'Amiri', serif; font-size: 1.7em; font-weight: 700; color: var(--g2);
+            text-shadow: 0 0 35px rgba(255,237,78,.9), 0 0 70px rgba(255,215,0,.6); letter-spacing: 2px; margin: 8px 0 4px; }
+        .tm-founded { display: inline-block; margin-top: 6px; padding: 5px 16px; border: 2px solid var(--g1);
+            border-radius: 30px; color: var(--g3); font-weight: 800; font-size: .9em; background: rgba(255,215,0,.08);
+            box-shadow: 0 0 20px rgba(255,215,0,.25); letter-spacing: 1px; }
+
+        .tm-photos { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin: 20px 0; }
+        .tm-frame { position: relative; padding: 8px; border-radius: 10px;
+            background: linear-gradient(135deg, var(--g2), var(--g5), var(--g4));
+            box-shadow: 0 10px 30px rgba(0,0,0,.7), 0 0 25px rgba(255,215,0,.4);
+            transform: rotate(-2deg); }
+        .tm-frame:nth-child(even) { transform: rotate(2deg); }
+        .tm-frame img { display: block; width: 150px; height: 150px; object-fit: cover; border-radius: 4px;
+            filter: sepia(.55) contrast(1.05) brightness(.92) saturate(.85); border: 3px solid #1a0f3a; background: #1a0f3a; }
+        .tm-frame::after { content: ''; position: absolute; inset: 8px; border-radius: 4px; pointer-events: none;
+            box-shadow: inset 0 0 40px rgba(40,20,5,.55); }
+        .tm-cap { position: absolute; bottom: 8px; left: 8px; right: 8px; text-align: center;
+            font-size: .62em; color: #f5e9c8; background: rgba(20,12,40,.55); padding: 2px; font-weight: 700; letter-spacing: 1px; }
+
+        .tm-meta { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 14px 0; }
+        .tm-meta span { padding: 6px 14px; border-radius: 12px; background: rgba(255,215,0,.07);
+            border: 1px solid rgba(255,215,0,.3); color: var(--g3); font-weight: 700; font-size: .85em; }
+
+        .tm-line { height: 4px; margin: 16px 0; border-radius: 3px;
+            background: linear-gradient(90deg, transparent, var(--g2), var(--g1), var(--g4), var(--g2), transparent);
+            box-shadow: 0 0 25px var(--g1); }
+
+        .tm-story-title { text-align: center; color: var(--g2); font-weight: 900; letter-spacing: 3px;
+            font-size: 1.05em; margin-bottom: 10px; text-shadow: 0 0 20px rgba(255,215,0,.6); }
+        .tm-story { color: var(--g3); line-height: 2; font-size: .98em; text-align: justify;
+            max-height: 240px; overflow-y: auto; padding: 4px 6px 4px 0; border-right: 3px solid rgba(255,215,0,.4); padding-right: 12px; }
+        .tm-credit { text-align: center; color: rgba(255,249,230,.55); font-size: .72em; margin-top: 12px; }
+
+        .tm-btns { display: flex; gap: 12px; margin-top: 18px; }
+        .tm-btns button { flex: 1; padding: 14px; border: none; border-radius: 14px; cursor: pointer;
+            font-family: 'Tajawal', sans-serif; font-weight: 900; font-size: 1em; letter-spacing: 1px;
+            background: linear-gradient(135deg, var(--g2), var(--g5)); color: var(--navy);
+            box-shadow: 0 6px 20px rgba(255,215,0,.5); transition: transform .2s; }
+        .tm-btns button:hover { transform: translateY(-2px); }
+
+        .tm-loading { text-align: center; padding: 44px 0; color: var(--g3); font-weight: 800; }
+        .tm-spinner { width: 54px; height: 54px; margin: 0 auto 16px; border-radius: 50%;
+            border: 5px solid rgba(255,215,0,.2); border-top-color: var(--g1); animation: spin 1s linear infinite; }
     </style>
 </head>
 <body>
@@ -498,10 +577,19 @@
         </div>
     </div>
 
+    <!-- ===== AJOUT : modale "حكاية الفريق" ===== -->
+    <div class="team-modal" id="teamModal">
+        <div class="team-modal-card">
+            <button class="tm-close" onclick="closeTeam()">✕</button>
+            <div id="teamModalBody"></div>
+        </div>
+    </div>
+
     <script>
         let currentLeague = 'PL';
         let matchesData = [];
         let standingsData = [];
+        let currentStoryText = '';
 
         const leagueSelect = document.getElementById('leagueSelect');
         const matchesContainer = document.getElementById('matches');
@@ -509,6 +597,8 @@
         const readBtn = document.getElementById('readBtn');
         const refreshBtn = document.getElementById('refreshBtn');
         const status = document.getElementById('status');
+        const teamModal = document.getElementById('teamModal');
+        const teamModalBody = document.getElementById('teamModalBody');
 
         leagueSelect.addEventListener('change', (e) => {
             currentLeague = e.target.value;
@@ -518,25 +608,31 @@
         refreshBtn.addEventListener('click', loadData);
         readBtn.addEventListener('click', readScores);
 
+        // Clic sur un nom d'equipe (classement OU match) -> ouvre sa carte/histoire
+        document.addEventListener('click', (e) => {
+            const el = e.target.closest('[data-team-id]');
+            if (el) openTeam(el.getAttribute('data-team-id'), el.getAttribute('data-team-name'),
+                              el.getAttribute('data-team-crest'), el.getAttribute('data-team-short'));
+        });
+        teamModal.addEventListener('click', (e) => { if (e.target === teamModal) closeTeam(); });
+
         /* ============================================================
            DONNEES REELLES & A JOUR via football-data.org
            ------------------------------------------------------------
            football-data.org bloque le CORS navigateur ET exige un token
-           secret dans le header => impossible en pur single-file.
-           Solution : un petit proxy Cloudflare Worker GRATUIT qui garde
-           le token et ajoute les en-tetes CORS.
-
-           ETAPES :
-           1) Deploie le worker fourni (worker.js) sur Cloudflare (gratuit).
-           2) Colle l'URL du worker ci-dessous, SANS slash final.
-
-           Le worker expose 2 routes :   /standings/PL    et    /matches/PL
-           Codes ligues = PL / PD / SA / BL1 / FL1  (deja ceux du <select>).
+           secret => proxy Cloudflare Worker GRATUIT (worker2.js).
+           1) Deploie worker2.js sur Cloudflare.
+           2) Colle son URL ci-dessous, SANS slash final.
+           Routes : /standings/PL   /matches/PL   /team/{id}
+           Ligues : PL PD SA BL1 FL1
            ============================================================ */
         const WORKER_URL = 'https://VOTRE-WORKER.workers.dev';
 
         function msg(t) {
             return '<p style="text-align:center;color:var(--g3);font-weight:800;font-size:1.05em;">' + t + '</p>';
+        }
+        function esc(s) {
+            return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
         async function loadData() {
@@ -567,9 +663,13 @@
             const liveStates = ['IN_PLAY', 'PAUSED'];
             const all = (data.matches || []).map(m => {
                 const ft = (m.score && m.score.fullTime) ? m.score.fullTime : {};
+                const h = m.homeTeam || {}, a = m.awayTeam || {};
                 return {
-                    home: (m.homeTeam && (m.homeTeam.shortName || m.homeTeam.name)) || '؟',
-                    away: (m.awayTeam && (m.awayTeam.shortName || m.awayTeam.name)) || '؟',
+                    home: h.shortName || h.name || '؟',
+                    away: a.shortName || a.name || '؟',
+                    homeId: h.id, awayId: a.id,
+                    homeCrest: h.crest || '', awayCrest: a.crest || '',
+                    homeShort: h.shortName || h.name || '', awayShort: a.shortName || a.name || '',
                     homeGoals: (ft.home == null) ? '-' : ft.home,
                     awayGoals: (ft.away == null) ? '-' : ft.away,
                     status: liveStates.indexOf(m.status) !== -1 ? 'مباشر' : (m.status === 'FINISHED' ? 'انتهت' : 'لم تبدأ'),
@@ -578,19 +678,14 @@
             });
 
             const liveOnes = all.filter(m => m.status === 'مباشر');
-            const finished = all.filter(m => m.status === 'انتهت')
-                                 .sort((a, b) => new Date(b.date) - new Date(a.date));
-            const upcoming = all.filter(m => m.status === 'لم تبدأ')
-                                 .sort((a, b) => new Date(a.date) - new Date(b.date));
+            const finished = all.filter(m => m.status === 'انتهت').sort((a, b) => new Date(b.date) - new Date(a.date));
+            const upcoming = all.filter(m => m.status === 'لم تبدأ').sort((a, b) => new Date(a.date) - new Date(b.date));
 
             matchesData = liveOnes.concat(finished).slice(0, 15);
             if (matchesData.length === 0) matchesData = upcoming.slice(0, 15);
 
-            if (matchesData.length === 0) {
-                matchesContainer.innerHTML = msg('لا توجد مباريات في هذه الفترة');
-            } else {
-                displayMatches();
-            }
+            if (matchesData.length === 0) matchesContainer.innerHTML = msg('لا توجد مباريات في هذه الفترة');
+            else displayMatches();
         }
 
         async function fetchStandings() {
@@ -602,27 +697,38 @@
             const block = standings.find(s => s.type === 'TOTAL') || standings[0];
             const table = (block && block.table) || [];
 
-            standingsData = table.map(t => ({
-                pos: t.position,
-                name: (t.team && (t.team.shortName || t.team.name)) || '؟',
-                played: t.playedGames,
-                points: t.points
-            }));
+            standingsData = table.map(t => {
+                const tm = t.team || {};
+                return {
+                    pos: t.position,
+                    name: tm.shortName || tm.name || '؟',
+                    id: tm.id, crest: tm.crest || '', short: tm.shortName || tm.name || '',
+                    played: t.playedGames, points: t.points
+                };
+            });
 
-            if (standingsData.length === 0) {
-                standingsContainer.innerHTML = msg('لا يتوفر الترتيب حالياً');
-            } else {
-                displayStandings();
-            }
+            if (standingsData.length === 0) standingsContainer.innerHTML = msg('لا يتوفر الترتيب حالياً');
+            else displayStandings();
+        }
+
+        function teamAttrs(o, side) {
+            // o = objet match ou standing ; side = '' | 'home' | 'away'
+            const id = side ? o[side + 'Id'] : o.id;
+            const name = side ? o[side] : o.name;
+            const crest = side ? o[side + 'Crest'] : o.crest;
+            const short = side ? o[side + 'Short'] : o.short;
+            if (!id) return '';
+            return 'class="clickable-team" data-team-id="' + esc(id) + '" data-team-name="' + esc(name) +
+                   '" data-team-crest="' + esc(crest) + '" data-team-short="' + esc(short) + '"';
         }
 
         function displayMatches() {
             matchesContainer.innerHTML = matchesData.map(m => `
                 <div class="match">
                     <div class="match-header">
-                        <span>${m.home}</span>
+                        <span ${teamAttrs(m, 'home')}>${esc(m.home)}</span>
                         <span class="score">${m.homeGoals} - ${m.awayGoals}</span>
-                        <span>${m.away}</span>
+                        <span ${teamAttrs(m, 'away')}>${esc(m.away)}</span>
                     </div>
                     <div class="time">${m.status === 'مباشر' ? '🔴 مباشر' : m.status}</div>
                 </div>
@@ -640,13 +746,167 @@
                 ${standingsData.map(t => `
                     <div class="team-row">
                         <div class="position">${t.pos}</div>
-                        <div style="font-weight: 800;">${t.name}</div>
+                        <div style="font-weight: 800;" ${teamAttrs(t, '')}>${esc(t.name)}</div>
                         <div style="text-align: center; font-weight: 800;">${t.played}</div>
                         <div style="text-align: center; color: var(--g2); font-weight: 900; font-size: 1.2em; text-shadow: 0 0 15px rgba(255, 215, 0, 0.6);">${t.points}</div>
                     </div>
                 `).join('')}
             `;
         }
+
+        /* ===================== CARTE / HISTOIRE DU CLUB ===================== */
+
+        async function openTeam(id, name, crest, short) {
+            window.speechSynthesis.cancel();
+            currentStoryText = '';
+            teamModal.classList.add('open');
+            teamModalBody.innerHTML =
+                '<div class="tm-loading"><div class="tm-spinner"></div>جاري سرد حكاية ' + esc(name || 'الفريق') + '...</div>';
+
+            const [metaR, storyR] = await Promise.allSettled([
+                getTeamMeta(id),
+                getTeamStory(short || name, name)
+            ]);
+            const meta = metaR.status === 'fulfilled' ? metaR.value : null;
+            const story = storyR.status === 'fulfilled' ? storyR.value : null;
+
+            renderTeamCard({ id, name, crest }, meta, story);
+        }
+
+        function closeTeam() {
+            window.speechSynthesis.cancel();
+            teamModal.classList.remove('open');
+        }
+
+        async function getTeamMeta(id) {
+            if (!id) return null;
+            const res = await fetch(WORKER_URL + '/team/' + id);
+            if (!res.ok) return null;
+            const d = await res.json();
+            return {
+                name: d.name, crest: d.crest, founded: d.founded,
+                colors: d.clubColors, venue: d.venue, website: d.website
+            };
+        }
+
+        function cleanName(q) {
+            return String(q || '')
+                .replace(/\b(FC|CF|AFC|SC|AC|CD|RC|CP|BK|SK|VfL|VfB|TSG|SV|BSC|RCD|UD|SD|1\.)\b/gi, '')
+                .replace(/\s+/g, ' ').trim();
+        }
+
+        async function getTeamStory(primary, secondary) {
+            const tries = [primary, cleanName(primary), secondary, cleanName(secondary)]
+                .filter((v, i, arr) => v && arr.indexOf(v) === i);
+
+            for (const q of tries) {
+                try {
+                    const sUrl = 'https://ar.wikipedia.org/w/api.php?action=query&list=search&srsearch=' +
+                                 encodeURIComponent(q) + '&srlimit=1&format=json&origin=*';
+                    const sRes = await fetch(sUrl);
+                    if (!sRes.ok) continue;
+                    const sData = await sRes.json();
+                    const hit = sData.query && sData.query.search && sData.query.search[0];
+                    if (!hit) continue;
+
+                    const sumUrl = 'https://ar.wikipedia.org/api/rest_v1/page/summary/' +
+                                   encodeURIComponent(hit.title);
+                    const sumRes = await fetch(sumUrl);
+                    if (!sumRes.ok) continue;
+                    const sum = await sumRes.json();
+
+                    const extract = sum.extract || '';
+                    if (!extract) continue;
+                    return {
+                        title: sum.title || hit.title,
+                        extract: extract,
+                        image: (sum.originalimage && sum.originalimage.source) ||
+                               (sum.thumbnail && sum.thumbnail.source) || '',
+                        page: (sum.content_urls && sum.content_urls.desktop && sum.content_urls.desktop.page) || ''
+                    };
+                } catch (e) { /* on tente la requete suivante */ }
+            }
+            return null;
+        }
+
+        function renderTeamCard(base, meta, story) {
+            const name = (story && story.title) || (meta && meta.name) || base.name || 'الفريق';
+            const founded = meta && meta.founded;
+            const colors = meta && meta.colors;
+            const venue = meta && meta.venue;
+            const crest = base.crest || (meta && meta.crest) || '';
+            const archive = story && story.image;
+
+            currentStoryText = story && story.extract ? story.extract : '';
+
+            // Photos "archives" : blason + image Wikipedia, en cadre sepia/or
+            let photos = '';
+            if (crest) photos += '<div class="tm-frame"><img src="' + esc(crest) + '" alt=""><div class="tm-cap">الشعار</div></div>';
+            if (archive) photos += '<div class="tm-frame"><img src="' + esc(archive) + '" alt=""><div class="tm-cap">من الأرشيف</div></div>';
+
+            let meta_html = '';
+            if (venue) meta_html += '<span>🏟️ ' + esc(venue) + '</span>';
+            if (colors) meta_html += '<span>🎨 ' + esc(colors) + '</span>';
+
+            const storyBlock = currentStoryText
+                ? '<div class="tm-story-title">📜 الحكاية</div><div class="tm-story" id="tmStory">' + esc(currentStoryText) + '</div>' +
+                  (story.page ? '<div class="tm-credit">المصدر: ويكيبيديا — <a href="' + esc(story.page) + '" target="_blank" rel="noopener" style="color:var(--g2);">المقال الكامل</a></div>' : '<div class="tm-credit">المصدر: ويكيبيديا</div>')
+                : '<div class="tm-story-title">📜 الحكاية</div>' + msg('الحكاية غير متوفرة حالياً لهذا النادي');
+
+            teamModalBody.innerHTML =
+                '<div class="tm-head">' +
+                    '<div class="tm-name">' + esc(name) + '</div>' +
+                    (founded ? '<div class="tm-founded">⭐ تأسس سنة ' + esc(founded) + '</div>' : '') +
+                '</div>' +
+                (photos ? '<div class="tm-photos">' + photos + '</div>' : '') +
+                (meta_html ? '<div class="tm-meta">' + meta_html + '</div>' : '') +
+                '<div class="tm-line"></div>' +
+                storyBlock +
+                '<div class="tm-btns">' +
+                    '<button onclick="speakStory()" ' + (currentStoryText ? '' : 'disabled style="opacity:.5;cursor:default;"') + '>🔊 احكِ القصة</button>' +
+                    '<button onclick="closeTeam()">✖ إغلاق</button>' +
+                '</div>';
+        }
+
+        function speakStory() {
+            if (!currentStoryText) return;
+            speakLong(currentStoryText);
+            playStadiumAmbiance();
+        }
+
+        // Lecture longue en arabe : on coupe en morceaux <=180 caracteres et on les
+        // enchaine (contourne la troncature ~15s de Chrome). Pattern LORD habituel.
+        function speakLong(text) {
+            window.speechSynthesis.cancel();
+            const chunks = [];
+            let buf = '';
+            text.split(/(?<=[\.!\?؟،\n])\s+/).forEach(part => {
+                if ((buf + ' ' + part).length > 180) {
+                    if (buf) chunks.push(buf.trim());
+                    if (part.length > 180) {
+                        for (let i = 0; i < part.length; i += 180) chunks.push(part.slice(i, i + 180));
+                        buf = '';
+                    } else buf = part;
+                } else {
+                    buf = buf ? buf + ' ' + part : part;
+                }
+            });
+            if (buf.trim()) chunks.push(buf.trim());
+
+            let i = 0;
+            function next() {
+                if (i >= chunks.length) return;
+                const u = new SpeechSynthesisUtterance(chunks[i++]);
+                u.lang = 'ar-SA';
+                u.rate = 0.85;
+                u.pitch = 1.05;
+                u.onend = next;
+                window.speechSynthesis.speak(u);
+            }
+            next();
+        }
+
+        /* ===================== LECTURE DES RESULTATS (inchange) ===================== */
 
         function readScores() {
             if (!matchesData.length) return;

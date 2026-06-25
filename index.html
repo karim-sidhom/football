@@ -600,6 +600,28 @@
         .footer{text-align:center;font-size:10px;color:var(--text-dim);margin-top:20px;position:relative;z-index:2;}
         .footer-arabic{font-family:'Amiri',serif;font-size:16px;display:block;color:var(--gold-24);margin-bottom:3px;}
         .footer-sub{font-size:9px;letter-spacing:3px;color:rgba(212,160,23,0.35);}
+
+        /* ── Bannière TIFO générée (carte club) ── */
+        .tm-tifo{position:relative;margin:6px 0 16px;padding:18px 16px 0;border-radius:16px;overflow:hidden;text-align:center;
+            background:radial-gradient(ellipse 90% 70% at 50% 0%,rgba(13,26,110,.92),rgba(2,9,40,.97));
+            border:2px solid var(--gold-bright);box-shadow:0 0 30px rgba(255,215,0,.3),inset 0 0 30px rgba(255,215,0,.08);}
+        .tm-tifo::before{content:'';position:absolute;top:0;bottom:0;left:0;width:60%;
+            background:linear-gradient(105deg,transparent 40%,rgba(255,255,240,.14) 48%,transparent 56%);
+            animation:tifoShine 4.5s ease-in-out infinite;pointer-events:none;}
+        @keyframes tifoShine{0%{transform:translateX(-120%)}100%{transform:translateX(320%)}}
+        .tm-tifo-stars{color:var(--gold-shine);letter-spacing:7px;font-size:13px;text-shadow:0 0 12px var(--gold-glow);margin-bottom:10px;}
+        .tm-tifo-crest{width:98px;height:98px;margin:0 auto 10px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+            background:radial-gradient(circle,rgba(255,215,0,.22),transparent 70%);border:2px solid var(--gold-bright);
+            box-shadow:0 0 25px var(--gold-glow),inset 0 0 18px rgba(255,215,0,.15);}
+        .tm-tifo-crest img{width:66px;height:66px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6));}
+        .tm-tifo-crest .tm-tifo-fallback{font-size:40px;}
+        .tm-tifo-name{font-family:'Amiri',serif;font-size:1.5em;font-weight:700;color:var(--gold-shine);
+            text-shadow:0 0 22px rgba(255,215,0,.8);letter-spacing:1px;margin-bottom:12px;}
+        .tm-tifo-scarf{display:flex;align-items:center;justify-content:center;gap:10px;padding:9px 6px;margin:0 -16px;
+            font-weight:900;color:#fff;letter-spacing:1px;text-shadow:0 1px 3px rgba(0,0,0,.85);border-top:2px solid var(--gold-bright);
+            background:repeating-linear-gradient(45deg,var(--c1,#ffd700) 0 14px,var(--c2,#0a1f44) 14px 28px);}
+        .tm-tifo-scarf b{background:rgba(2,9,40,.65);padding:3px 14px;border-radius:20px;font-family:'Amiri',serif;color:var(--gold-shine);}
+        .tm-tifo-scarf span{color:var(--gold-shine);text-shadow:0 0 8px var(--gold-glow);}
     </style>
 </head>
 <body>
@@ -963,6 +985,37 @@
             return 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
         }
 
+        // Couleurs du club -> 2 teintes pour l'écharpe du tifo (défaut: or / bleu nuit)
+        function parseColors(str) {
+            const map = {
+                'white':'#f3f3f3','black':'#161616','red':'#c1121f','blue':'#1d4ed8','navy':'#0a1f44',
+                'navy blue':'#0a1f44','royal blue':'#1e3a8a','sky blue':'#38bdf8','light blue':'#7dd3fc',
+                'dark blue':'#102a54','yellow':'#ffd60a','gold':'#d4af37','green':'#15803d','dark green':'#0f5132',
+                'orange':'#ff7a00','maroon':'#7a263a','claret':'#7a263a','burgundy':'#6b1f2e','purple':'#6b21a8',
+                'pink':'#ec4899','grey':'#9ca3af','gray':'#9ca3af','silver':'#cbd5e1','brown':'#8b5e34'
+            };
+            const out = [];
+            String(str || '').toLowerCase().split(/[\/,]| and /).forEach(t => {
+                t = t.trim();
+                if (map[t] && out.length < 2 && out.indexOf(map[t]) === -1) out.push(map[t]);
+            });
+            while (out.length < 2) out.push(out.length ? '#0a1f44' : '#ffd700');
+            return out;
+        }
+
+        // Bannière TIFO : blason + nom + écharpe aux couleurs du club (tout généré, aucune image externe)
+        function tifoHTML(crest, name, cols) {
+            const img = crest
+                ? '<img src="' + esc(crest) + '" alt="">'
+                : '<span class="tm-tifo-fallback">⚽</span>';
+            return '<div class="tm-tifo" style="--c1:' + cols[0] + ';--c2:' + cols[1] + '">' +
+                       '<div class="tm-tifo-stars">★ ✦ ★</div>' +
+                       '<div class="tm-tifo-crest">' + img + '</div>' +
+                       '<div class="tm-tifo-name">' + esc(name) + '</div>' +
+                       '<div class="tm-tifo-scarf"><span>★</span><b>' + esc(name) + '</b><span>★</span></div>' +
+                   '</div>';
+        }
+
         var _ytListCache = {};
         // Une vidéo AU HASARD parmi les résultats (nécessite YOUTUBE_KEY). Renvoie {id,title} ou null.
         // La liste est mise en cache ; on tire au sort à chaque clic (vidéo différente sans recharger l'API).
@@ -1146,14 +1199,11 @@
             const colors = meta && meta.colors;
             const venue = meta && meta.venue;
             const crest = base.crest || (meta && meta.crest) || '';
-            const archive = '';   // image Wikipédia retirée (risque de photo hors-sujet) — on garde le blason
-
             currentStoryText = (story && story.extract) || (club && club.hist) || '';
             currentPalmares = (club && club.cups) ? club.cups.slice() : [];
 
-            let photos = '';
-            if (crest) photos += '<div class="tm-frame"><img src="' + esc(crest) + '" alt=""><div class="tm-cap">الشعار</div></div>';
-            if (archive) photos += '<div class="tm-frame"><img src="' + esc(archive) + '" alt=""><div class="tm-cap">من الأرشيف</div></div>';
+            // Bannière TIFO générée (blason + nom + écharpe aux couleurs) — zéro source externe
+            const tifo = tifoHTML(crest, name, parseColors(colors));
 
             let meta_html = '';
             if (venue) meta_html += '<span>🏟️ ' + esc(venue) + '</span>';
@@ -1196,7 +1246,7 @@
                     '<div class="tm-name">' + esc(name) + '</div>' +
                     (founded ? '<div class="tm-founded">⭐ تأسس سنة ' + esc(founded) + '</div>' : '') +
                 '</div>' +
-                (photos ? '<div class="tm-photos">' + photos + '</div>' : '') +
+                tifo +
                 (meta_html ? '<div class="tm-meta">' + meta_html + '</div>' : '') +
                 '<div class="tm-line"></div>' +
                 palmares +

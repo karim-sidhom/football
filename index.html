@@ -24,10 +24,7 @@
 
         body {
             font-family: 'Tajawal', sans-serif;
-            background: 
-                radial-gradient(ellipse 80% 40% at 50% 0%, rgba(255, 215, 0, 0.2), transparent),
-                radial-gradient(ellipse 80% 40% at 50% 100%, rgba(255, 215, 0, 0.2), transparent),
-                linear-gradient(180deg, #0a0520 0%, #1a0a3a 50%, #0a0520 100%);
+            background: transparent;
             color: var(--g3);
             min-height: 100vh;
             display: flex;
@@ -544,9 +541,9 @@
             --text:#fff8e1; --text-dim:#d4b86a;
             --card:rgba(2,9,40,0.88); --card-border:rgba(255,215,0,0.45);
         }
-        body{font-family:'Tajawal',sans-serif !important;background:var(--royal-deep) !important;color:var(--text);min-height:100vh;display:flex !important;justify-content:center;align-items:flex-start;padding:28px 16px 60px !important;overflow-x:hidden;position:relative;}
+        body{font-family:'Tajawal',sans-serif !important;background:transparent !important;color:var(--text);min-height:100vh;display:flex !important;justify-content:center;align-items:flex-start;padding:28px 16px 60px !important;overflow-x:hidden;position:relative;}
 
-        .bg-overlay{position:fixed;inset:0;background:linear-gradient(180deg,rgba(2,11,46,0.82) 0%,rgba(2,11,46,0.60) 40%,rgba(2,11,46,0.88) 100%),radial-gradient(ellipse 70% 50% at 50% 0%,rgba(13,26,110,0.65) 0%,transparent 70%);z-index:0;}
+        .bg-overlay{position:fixed;inset:0;background:linear-gradient(180deg,rgba(2,11,46,0.72) 0%,rgba(2,11,46,0.50) 40%,rgba(2,11,46,0.78) 100%),radial-gradient(ellipse 70% 50% at 50% 0%,rgba(13,26,110,0.55) 0%,transparent 70%);z-index:0;}
         .bg-pattern{position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'%3E%3Cdefs%3E%3Cstyle%3E.g%7Bfill:none;stroke:rgba(212,160,23,0.06);stroke-width:0.7%7D%3C/style%3E%3C/defs%3E%3Cpath class='g' d='M50 0L100 50L50 100L0 50Z'/%3E%3Cpath class='g' d='M50 18L82 50L50 82L18 50Z'/%3E%3Ccircle class='g' cx='50' cy='50' r='22'/%3E%3C/svg%3E");background-size:100px 100px;z-index:0;opacity:0.7;}
         .bg-ornament{position:fixed;pointer-events:none;z-index:1;opacity:0.18;color:var(--gold-bright);}
         .bg-ornament.tl{top:-70px;left:-70px;width:280px;height:280px;animation:spin 45s linear infinite;}
@@ -622,9 +619,82 @@
             background:repeating-linear-gradient(45deg,var(--c1,#ffd700) 0 14px,var(--c2,#0a1f44) 14px 28px);}
         .tm-tifo-scarf b{background:rgba(2,9,40,.65);padding:3px 14px;border-radius:20px;font-family:'Amiri',serif;color:var(--gold-shine);}
         .tm-tifo-scarf span{color:var(--gold-shine);text-shadow:0 0 8px var(--gold-glow);}
+
+        /* ===== BARRE SPEAKER ACTUALITES FOOT ===== */
+        #news-bar{
+            position:fixed;bottom:0;left:0;right:0;z-index:200;
+            height:50px;display:flex;align-items:center;
+            background:linear-gradient(90deg,rgba(2,9,40,0.97) 0%,rgba(13,26,110,0.97) 50%,rgba(2,9,40,0.97) 100%);
+            border-top:2px solid var(--gold-bright);
+            box-shadow:0 -4px 30px rgba(255,215,0,0.4),0 -1px 0 rgba(255,215,0,0.2);
+            overflow:hidden;
+        }
+        #news-label{
+            flex-shrink:0;display:flex;align-items:center;gap:6px;
+            padding:0 12px 0 14px;height:100%;
+            background:linear-gradient(135deg,var(--gold-bright),var(--gold-24));
+            color:#020b2e;font-weight:900;font-size:11px;letter-spacing:1px;
+            white-space:nowrap;
+        }
+        #news-label .nb-mic{font-size:19px;animation:micPulse 1.2s ease-in-out infinite;}
+        @keyframes micPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.3)}}
+        #news-controls{
+            flex-shrink:0;display:flex;align-items:center;gap:5px;
+            padding:0 10px;height:100%;
+            border-right:1px solid rgba(255,215,0,0.25);
+        }
+        .nb-btn{
+            width:30px;height:30px;border-radius:50%;border:1.5px solid rgba(255,215,0,0.45);
+            background:rgba(255,215,0,0.08);color:var(--gold-shine);
+            font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+            transition:all 0.2s;padding:0;line-height:1;
+        }
+        .nb-btn:hover{background:rgba(255,215,0,0.25);border-color:var(--gold-bright);}
+        .nb-btn.on{background:var(--gold-bright);color:#020b2e;border-color:var(--gold-bright);}
+        #news-ticker-wrap{
+            flex:1;overflow:hidden;height:100%;
+            display:flex;align-items:center;position:relative;
+        }
+        #news-ticker-wrap::before{
+            content:'';position:absolute;right:0;top:0;bottom:0;width:60px;
+            background:linear-gradient(to right,transparent,rgba(2,9,40,0.9));
+            z-index:2;pointer-events:none;
+        }
+        #news-ticker{
+            display:inline-flex;white-space:nowrap;
+            animation:tickerMove 80s linear infinite;
+            will-change:transform;
+        }
+        #news-ticker:hover{animation-play-state:paused;}
+        @keyframes tickerMove{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+        .ni{
+            display:inline-flex;align-items:center;gap:8px;
+            padding:0 22px;font-size:12.5px;font-weight:700;
+            color:var(--gold-shine);font-family:'Tajawal',sans-serif;
+            cursor:pointer;border-right:1px solid rgba(255,215,0,0.15);
+            transition:color 0.2s;
+        }
+        .ni:hover{color:#fff;}
+        .ni.speaking{color:#fff;text-shadow:0 0 14px rgba(255,215,0,1);}
+        .ni .dot{color:var(--gold-bright);font-size:18px;line-height:1;}
+        #nb-loading{padding:0 20px;color:var(--gold-24);font-size:12px;font-weight:700;
+            animation:blink2 1s infinite;}
+        @keyframes blink2{0%,100%{opacity:1}50%{opacity:0.25}}
+        body{padding-bottom:58px !important;}
     </style>
 </head>
 <body>
+<!-- VIDEO BACKGROUND -->
+<video id="bg-video" autoplay muted loop playsinline style="
+    position:fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    object-fit:cover;
+    z-index:-1;
+    pointer-events:none;
+">
+    <source src="tu_peut_crr_une_vbide_de_foot.mp4" type="video/mp4">
+</video>
 <div class="gold-topline"></div>
 <div class="gold-bottomline"></div>
 <div class="bg-overlay"></div>
@@ -1351,6 +1421,199 @@
         }
 
         window.addEventListener('load', loadData);
+    </script>
+
+    <!-- ===== BARRE SPEAKER ACTUALITES FOOT ===== -->
+    <div id="news-bar">
+        <div id="news-label">
+            <span class="nb-mic">🎙️</span>
+            <span>أخبار<br>الكرة</span>
+        </div>
+        <div id="news-controls">
+            <button class="nb-btn on" id="btn-voice" title="صوت">🔊</button>
+            <button class="nb-btn" id="btn-pause" title="إيقاف">⏸</button>
+            <button class="nb-btn" id="btn-next" title="التالي">⏭</button>
+        </div>
+        <div id="news-ticker-wrap">
+            <div id="news-ticker">
+                <span id="nb-loading">⚽ جاري تحميل أخبار الكرة...</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    /* ============================================================
+       SPEAKER ACTUALITES FOOT — RSS gratuit + Web Speech API
+       Sources : BBC Arabic Sport, Sky Sport Arabic, RFI Arabic,
+                 L'Équipe RSS, Goal.com RSS  (via allorigins proxy)
+       Voix     : Web Speech API du navigateur (gratuit, hors-ligne)
+    ============================================================ */
+    (function(){
+        const PROXY = 'https://api.allorigins.win/get?url=';
+        const FEEDS = [
+            'https://feeds.bbci.co.uk/arabic/sport/rss.xml',
+            'https://www.goal.com/ar/rss/news',
+            'https://www.lequipe.fr/rss/actu_rss.xml',
+            'https://rss.beinsports.com/ar/football',
+            'https://www.skysports.com/rss/12040',
+        ];
+
+        let headlines = [];
+        let currentIdx = 0;
+        let voiceOn = true;
+        let paused = false;
+        let speaking = false;
+        let synth = window.speechSynthesis;
+        let tickerEl = document.getElementById('news-ticker');
+        let btnVoice = document.getElementById('btn-voice');
+        let btnPause = document.getElementById('btn-pause');
+        let btnNext  = document.getElementById('btn-next');
+
+        /* --- Chargement RSS --- */
+        async function fetchFeed(url) {
+            try {
+                const res = await fetch(PROXY + encodeURIComponent(url), {cache:'no-store'});
+                const data = await res.json();
+                const txt = data.contents || '';
+                const parser = new DOMParser();
+                const xml = parser.parseFromString(txt, 'text/xml');
+                const items = xml.querySelectorAll('item');
+                const results = [];
+                items.forEach(it => {
+                    const title = (it.querySelector('title') || {}).textContent || '';
+                    const clean = title.replace(/<!\[CDATA\[|\]\]>/g,'').trim();
+                    if (clean && clean.length > 8) results.push(clean);
+                });
+                return results;
+            } catch(e){ return []; }
+        }
+
+        async function loadAllFeeds() {
+            const all = await Promise.all(FEEDS.map(fetchFeed));
+            let merged = [];
+            all.forEach(arr => merged = merged.concat(arr));
+            // Dédoublonnage simple
+            merged = [...new Set(merged)];
+            // Si aucun résultat RSS → titres de secours en arabe
+            if (!merged.length) {
+                merged = [
+                    '⚽ مرحباً بكم في راديو الكرة الفاخر',
+                    '🏆 نتائج الدوريات الأوروبية على مدار الساعة',
+                    '📡 ترقبوا آخر أخبار كرة القدم العالمية',
+                    '⭐ نجوم الكرة في أحدث الأخبار والتحليلات',
+                    '🎙️ راديو الكرة — البث المباشر والنتائج اللحظية',
+                ];
+            }
+            return merged;
+        }
+
+        /* --- Construire le ticker HTML (dupliqué pour boucle infinie) --- */
+        function buildTicker(items) {
+            const make = () => items.map((t,i) =>
+                `<span class="ni" data-i="${i}"><span class="dot">⚽</span>${escHtml(t)}</span>`
+            ).join('');
+            tickerEl.innerHTML = make() + make(); // doublon pour seamless loop
+            // Ajuster la durée d'animation selon la longueur
+            const totalW = tickerEl.scrollWidth / 2;
+            const speed = Math.max(40, Math.min(160, totalW / 80)); // px/s
+            const dur = totalW / speed;
+            tickerEl.style.animationDuration = dur + 's';
+
+            // Clic sur un titre → le lire immédiatement
+            tickerEl.querySelectorAll('.ni').forEach(el => {
+                el.addEventListener('click', () => {
+                    const i = parseInt(el.dataset.i);
+                    currentIdx = i;
+                    speakCurrent();
+                });
+            });
+        }
+
+        function escHtml(s) {
+            return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        /* --- Web Speech API --- */
+        function getArabicVoice() {
+            const voices = synth.getVoices();
+            // Chercher voix arabe
+            return voices.find(v => v.lang.startsWith('ar')) ||
+                   voices.find(v => v.lang.startsWith('fr')) ||
+                   voices[0] || null;
+        }
+
+        function speakText(text, onEnd) {
+            if (!voiceOn || !synth) { if(onEnd) onEnd(); return; }
+            synth.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            const v = getArabicVoice();
+            if (v) u.voice = v;
+            u.lang = 'ar-SA';
+            u.rate = 0.88;
+            u.pitch = 1.05;
+            u.volume = 1;
+            u.onend = () => { speaking = false; if(onEnd) onEnd(); };
+            u.onerror = () => { speaking = false; if(onEnd) onEnd(); };
+            speaking = true;
+            synth.speak(u);
+        }
+
+        function speakCurrent() {
+            if (!headlines.length || paused) return;
+            const text = headlines[currentIdx] || '';
+            // Mettre en évidence le titre en cours dans le ticker
+            tickerEl.querySelectorAll('.ni').forEach(el => el.classList.remove('speaking'));
+            tickerEl.querySelectorAll(`.ni[data-i="${currentIdx}"]`).forEach(el => el.classList.add('speaking'));
+            speakText(text, () => {
+                if (paused) return;
+                currentIdx = (currentIdx + 1) % headlines.length;
+                // Pause légère entre les titres
+                setTimeout(speakCurrent, 1800);
+            });
+        }
+
+        /* --- Contrôles --- */
+        btnVoice.addEventListener('click', () => {
+            voiceOn = !voiceOn;
+            btnVoice.classList.toggle('on', voiceOn);
+            if (!voiceOn) { synth.cancel(); speaking = false; }
+            else if (!paused) speakCurrent();
+        });
+
+        btnPause.addEventListener('click', () => {
+            paused = !paused;
+            btnPause.classList.toggle('on', paused);
+            btnPause.textContent = paused ? '▶' : '⏸';
+            if (paused) { synth.cancel(); tickerEl.style.animationPlayState = 'paused'; }
+            else { tickerEl.style.animationPlayState = 'running'; speakCurrent(); }
+        });
+
+        btnNext.addEventListener('click', () => {
+            synth.cancel();
+            speaking = false;
+            currentIdx = (currentIdx + 1) % headlines.length;
+            setTimeout(speakCurrent, 200);
+        });
+
+        /* --- Init --- */
+        async function init() {
+            headlines = await loadAllFeeds();
+            buildTicker(headlines);
+            // Attendre que les voix soient chargées
+            if (synth.getVoices().length === 0) {
+                synth.addEventListener('voiceschanged', () => speakCurrent(), {once:true});
+            } else {
+                setTimeout(speakCurrent, 1500);
+            }
+            // Rafraîchissement toutes les 15 min
+            setInterval(async () => {
+                headlines = await loadAllFeeds();
+                buildTicker(headlines);
+            }, 15 * 60 * 1000);
+        }
+
+        init();
+    })();
     </script>
 </body>
 </html>

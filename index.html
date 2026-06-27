@@ -1361,7 +1361,7 @@
 
         // Lecture longue en arabe : on coupe en morceaux <=180 caracteres et on les
         // enchaine (contourne la troncature ~15s de Chrome). Pattern LORD habituel.
-        function speakLong(text, opts) {
+        function speakLong(text, opts, onDone) {
             opts = opts || {};
             window.speechSynthesis.cancel();
             const chunks = [];
@@ -1381,7 +1381,7 @@
 
             let i = 0;
             function next() {
-                if (i >= chunks.length) return;
+                if (i >= chunks.length) { if (typeof onDone === 'function') onDone(); return; }
                 const u = new SpeechSynthesisUtterance(chunks[i++]);
                 u.lang = 'ar-SA';
                 u.rate = (opts.rate != null) ? opts.rate : 0.85;
@@ -1421,39 +1421,56 @@
             }
             return [];
         }
-        async function playNewsRadio() {
-            try {
-                newsBtn.disabled = true;
-                showStatus('📡 جاري جلب الأخبار...', 'loading');
-                const items = (await fetchNews()).slice(0, 8);
-                newsBtn.disabled = false;
-                if (!items.length) { showStatus('❌ تعذّر جلب الأخبار، حاول مجدداً', 'error'); return; }
+        // État de la radio continue
+        let newsRadioOn = false;
+        let lastNewsItems = [];
 
-                // Affichage des titres
-                newsBox.style.display = 'block';
-                newsBox.innerHTML =
-                    '<h3 style="color:var(--g1);text-align:center;margin-bottom:12px;">📰 آخر أخبار كرة القدم</h3>' +
-                    items.map((it, i) =>
-                        '<p style="margin:9px 0;color:var(--g3);font-weight:600;line-height:1.6;">' +
-                        '<span style="color:var(--g1);font-weight:900;">' + (i + 1) + '.</span> ' + esc(it.title) +
-                        (it.src ? ' <span style="opacity:.6;font-size:.85em;">— ' + esc(it.src) + '</span>' : '') +
-                        '</p>'
-                    ).join('');
+        // Le bouton = interrupteur ON / OFF de la radio
+        function playNewsRadio() {
+            if (newsRadioOn) { stopNewsRadio('⏹️ توقفت الإذاعة'); return; }
+            newsRadioOn = true;
+            newsBtn.textContent = '⏹️ إيقاف الإذاعة';
+            playStadiumAmbiance();
+            newsRadioCycle();
+        }
+        function stopNewsRadio(msg) {
+            newsRadioOn = false;
+            try { window.speechSynthesis.cancel(); } catch (e) {}
+            newsBtn.textContent = '📰 نشرة الأخبار';
+            if (msg) showStatus(msg, 'success');
+        }
 
-                // Bulletin parlé (voix gratuite du navigateur)
-                const ord = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن'];
-                let s = 'نشرة أخبار كرة القدم من راديو الكرة الفاخرة بالذهب النقي، إليكم أبرز العناوين. ';
-                items.forEach((it, i) => { s += `الخبر ${ord[i] || (i + 1)}: ${it.title}. `; });
-                s += 'وإلى هنا تنتهي نشرتُكم الإخبارية، تحيةٌ ذهبيةٌ من اللورد سيدهم.';
+        // Un cycle : (re)charge les news → affiche → lit → BOUCLE = radio 24/24
+        async function newsRadioCycle() {
+            if (!newsRadioOn) return;
+            showStatus('📡 جاري تحديث الأخبار...', 'loading');
+            let items = (await fetchNews()).slice(0, 8);
+            if (items.length) lastNewsItems = items; else items = lastNewsItems;
+            if (!newsRadioOn) return;                       // arrêté pendant le fetch
+            if (!items.length) { stopNewsRadio('❌ تعذّر جلب الأخبار'); return; }
 
-                showStatus('📻 النشرة الإخبارية على الهواء...', 'loading');
-                playStadiumAmbiance();
-                speakLong(s, { rate: 0.95, pitch: 1.08 });
-                setTimeout(() => showStatus('👑 على الهواء مباشرةً', 'success'), 1400);
-            } catch (err) {
-                newsBtn.disabled = false;
-                showStatus('❌ خطأ: ' + err.message, 'error');
-            }
+            // Affichage des titres
+            newsBox.style.display = 'block';
+            newsBox.innerHTML =
+                '<h3 style="color:var(--g1);text-align:center;margin-bottom:12px;">📰 آخر أخبار كرة القدم — بث مستمر</h3>' +
+                items.map((it, i) =>
+                    '<p style="margin:9px 0;color:var(--g3);font-weight:600;line-height:1.6;">' +
+                    '<span style="color:var(--g1);font-weight:900;">' + (i + 1) + '.</span> ' + esc(it.title) +
+                    (it.src ? ' <span style="opacity:.6;font-size:.85em;">— ' + esc(it.src) + '</span>' : '') +
+                    '</p>'
+                ).join('');
+
+            // Bulletin parlé (voix gratuite du navigateur)
+            const ord = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن'];
+            let s = 'نشرة أخبار كرة القدم من راديو الكرة الفاخرة بالذهب النقي، إليكم أبرز العناوين. ';
+            items.forEach((it, i) => { s += `الخبر ${ord[i] || (i + 1)}: ${it.title}. `; });
+            s += 'وإلى نشرةٍ قادمة، تحيةٌ ذهبيةٌ من اللورد سيدهم.';
+
+            showStatus('📻 الإذاعة على الهواء مباشرةً ٢٤/٢٤', 'loading');
+            // Fin de lecture → on relance un cycle (radio en continu)
+            speakLong(s, { rate: 0.95, pitch: 1.08 }, function () {
+                if (newsRadioOn) setTimeout(newsRadioCycle, 1500);
+            });
         }
 
         /* ===================== المعلّق الإذاعي (راديو الكرة المباشر) ===================== */

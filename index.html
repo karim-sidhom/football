@@ -712,19 +712,20 @@
     <div class="buttons">
         <button id="readBtn" disabled>🔊 اقرأ النتائج</button>
         <button id="radioBtn" disabled>📻 المعلّق الإذاعي</button>
-        <button id="newsBtn">📰 نشرة الأخبار</button>
+        <button id="newsBtn">📻 إذاعة الكرة</button>
         <button id="refreshBtn">🔄 تحديث فوري</button>
     </div>
 
-    <!-- RADIO EN DIRECT (vraie radio : flux audio continu) -->
-    <div class="standings" id="liveRadioBox" style="margin-top:6px;">
-        <h3 style="color:var(--g1);text-align:center;margin-bottom:14px;font-size:1.15em;">📻 الراديو المباشر — بث حي ٢٤/٢٤</h3>
-        <select id="stationSelect"><option>⏳ جاري تحميل المحطات...</option></select>
-        <div style="text-align:center;margin-top:14px;">
-            <button id="liveBtn">▶️ تشغيل البث المباشر</button>
-        </div>
-        <p id="liveNow" style="text-align:center;color:var(--g3);margin-top:12px;font-weight:700;min-height:1.2em;"></p>
-        <audio id="liveAudio" preload="none" style="display:none;"></audio>
+    <!-- RADIO FOOT : API d'info libre + voix IA, multilingue -->
+    <div class="standings" id="radioBox" style="margin-top:6px;">
+        <h3 style="color:var(--g1);text-align:center;margin-bottom:12px;font-size:1.15em;">📻 إذاعة الكرة — بث متواصل</h3>
+        <select id="radioLang">
+            <option value="ar">🗣️ العربية</option>
+            <option value="fr">🗣️ Français</option>
+            <option value="en">🗣️ English</option>
+            <option value="es">🗣️ Español</option>
+        </select>
+        <p style="text-align:center;color:var(--g3);margin-top:10px;font-weight:600;opacity:.85;font-size:.92em;">اختر اللغة ثم شغّل الإذاعة من زر «📻 إذاعة الكرة» بالأعلى</p>
     </div>
 
     <div class="footer">
@@ -1394,7 +1395,7 @@
             function next() {
                 if (i >= chunks.length) { if (typeof onDone === 'function') onDone(); return; }
                 const u = new SpeechSynthesisUtterance(chunks[i++]);
-                u.lang = 'ar-SA';
+                u.lang = opts.lang || 'ar-SA';
                 u.rate = (opts.rate != null) ? opts.rate : 0.85;
                 u.pitch = (opts.pitch != null) ? opts.pitch : 1.05;
                 u.onend = next;
@@ -1403,42 +1404,89 @@
             next();
         }
 
-        /* ===================== نشرة الأخبار (راديو إخباري) =====================
-           API d'info GRATUITE : Google News RSS (foot, arabe), via proxy CORS
-           gratuit allorigins (repli : rss2json). Voix GRATUITE : synthèse vocale
-           du navigateur (déjà utilisée par l'app). Aucune clé, aucun backend. */
-        const NEWS_RSS = 'https://news.google.com/rss/search?q=' +
-            encodeURIComponent('كرة القدم') + '&hl=ar&gl=EG&ceid=EG:ar';
+        /* ===================== إذاعة الكرة (vraies infos COMPLÈTES + traduction + voix IA) =====================
+           Source : The Guardian (articles football COMPLETS, gratuit, clé de test publique).
+           Traduction : APIs gratuites en ligne (Google gtx → repli MyMemory) — sans clé.
+           => L'IA lit de vrais articles, en paragraphes, dans la langue choisie. 100% côté client. */
+        const GUARDIAN_URL = 'https://content.guardianapis.com/search?section=football&order-by=newest&show-fields=trailText,bodyText&page-size=10&api-key=test';
+        const RADIO_L10N = {
+            ar: { voice: 'ar-SA',
+                  intro: 'نشرة كرة القدم من راديو الكرة الفاخرة بالذهب النقي. إليكم أبرز الأخبار بالتفصيل. ',
+                  item: (n, t) => 'الخبر ' + n + ': ' + t + '. ',
+                  outro: 'وإلى نشرةٍ قادمة، تحيةٌ ذهبيةٌ من اللورد سيدهم.',
+                  loading: '📡 جلب الأخبار...', translating: '🌐 جاري الترجمة...', onair: '📻 الإذاعة على الهواء ٢٤/٢٤',
+                  boxTitle: '📰 أخبار كرة القدم — مترجمة كاملة', empty: '❌ تعذّر جلب الأخبار' },
+            fr: { voice: 'fr-FR',
+                  intro: "Journal football de la Radio d'Or pur. Voici les infos en détail. ",
+                  item: (n, t) => 'Info ' + n + ' : ' + t + '. ',
+                  outro: "À très vite, une salutation dorée du Lord Sidhom.",
+                  loading: '📡 Récupération des infos...', translating: '🌐 Traduction en cours...', onair: '📻 Radio en direct 24/24',
+                  boxTitle: '📰 Infos football — articles complets', empty: '❌ Impossible de charger les infos' },
+            en: { voice: 'en-GB',
+                  intro: 'Football news from the Pure Gold Radio. Here are the stories in detail. ',
+                  item: (n, t) => 'Story ' + n + ': ' + t + '. ',
+                  outro: 'Until next time, a golden greeting from Lord Sidhom.',
+                  loading: '📡 Fetching the news...', translating: '🌐 Preparing...', onair: '📻 Live on air 24/7',
+                  boxTitle: '📰 Football news — full articles', empty: '❌ Could not load the news' },
+            es: { voice: 'es-ES',
+                  intro: 'Noticiero de fútbol de la Radio de Oro puro. Aquí las noticias en detalle. ',
+                  item: (n, t) => 'Noticia ' + n + ': ' + t + '. ',
+                  outro: 'Hasta pronto, un saludo dorado de Lord Sidhom.',
+                  loading: '📡 Obteniendo noticias...', translating: '🌐 Traduciendo...', onair: '📻 En directo 24/7',
+                  boxTitle: '📰 Noticias de fútbol — artículos completos', empty: '❌ No se pudieron cargar las noticias' }
+        };
 
         function stripTags(s) {
             return String(s || '').replace(/<[^>]*>/g, ' ').replace(/&[a-z#0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim();
         }
-        function parseRss(xmlText) {
-            const doc = new DOMParser().parseFromString(xmlText || '', 'text/xml');
-            return Array.from(doc.querySelectorAll('item')).map(it => ({
-                title: stripTags(it.querySelector('title') ? it.querySelector('title').textContent : ''),
-                src:   stripTags(it.querySelector('source') ? it.querySelector('source').textContent : '')
-            })).filter(x => x.title);
+        function trimText(t, n) {
+            t = String(t || '');
+            if (t.length <= n) return t;
+            let cut = t.slice(0, n);
+            const k = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '));
+            if (k > n * 0.5) cut = cut.slice(0, k + 1);
+            return cut.trim();
         }
-        async function fetchNews() {
-            const sources = [
-                () => fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(NEWS_RSS))
-                        .then(r => r.json()).then(d => parseRss(d && d.contents)),
-                () => fetch('https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(NEWS_RSS))
-                        .then(r => r.json()).then(d => (d.items || []).map(it => ({ title: stripTags(it.title), src: stripTags(it.author) })))
-            ];
-            for (const get of sources) {
-                try { const arr = await get(); if (arr && arr.length) return arr; } catch (e) {}
-            }
+        // Articles COMPLETS depuis The Guardian (direct, sinon via proxy CORS)
+        async function fetchGuardian() {
+            const parse = d => (((d && d.response && d.response.results) || []).map(a => ({
+                title: a.webTitle || '',
+                url:   a.id || a.webTitle || '',
+                body:  stripTags(a.fields && a.fields.bodyText),
+                trail: stripTags(a.fields && a.fields.trailText)
+            })).filter(a => a.title && a.body));
+            try { const r = await fetch(GUARDIAN_URL); if (r.ok) return parse(await r.json()); } catch (e) {}
+            try { const r = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(GUARDIAN_URL)); const d = await r.json(); return parse(JSON.parse(d.contents)); } catch (e) {}
             return [];
         }
-        // État de la radio continue
-        let newsRadioOn = false;
-        let lastNewsItems = [];
+        // Traduction GRATUITE en ligne : Google gtx → proxy → MyMemory
+        async function tChunk(text, tl) {
+            const g = 'https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=' + tl + '&dt=t&q=' + encodeURIComponent(text);
+            try { const r = await fetch(g); if (r.ok) { const d = await r.json(); if (d && d[0]) return d[0].map(x => x[0]).join(''); } } catch (e) {}
+            try { const r = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(g)); const d = await r.json(); const j = JSON.parse(d.contents); if (j && j[0]) return j[0].map(x => x[0]).join(''); } catch (e) {}
+            try { const r = await fetch('https://api.mymemory.translated.net/get?langpair=en|' + tl + '&q=' + encodeURIComponent(text)); const d = await r.json(); if (d && d.responseData && d.responseData.translatedText) return d.responseData.translatedText; } catch (e) {}
+            return text;
+        }
+        async function translateText(text, tl) {
+            if (tl === 'en' || !text) return text;
+            const parts = []; let buf = '';
+            text.split(/(?<=[.!?])\s+/).forEach(sn => {
+                if ((buf + ' ' + sn).length > 450) { if (buf) parts.push(buf); buf = sn; } else buf = buf ? buf + ' ' + sn : sn;
+            });
+            if (buf) parts.push(buf);
+            const out = [];
+            for (const p of parts) { out.push(await tChunk(p, tl)); }
+            return out.join(' ');
+        }
 
-        // Le bouton = interrupteur ON / OFF de la radio
+        // État de la radio + cache de traductions
+        let newsRadioOn = false;
+        let radioArticles = [];
+        const transCache = {};
+        const radioLang = document.getElementById('radioLang');
+
         function playNewsRadio() {
-            if (newsRadioOn) { stopNewsRadio('⏹️ توقفت الإذاعة'); return; }
+            if (newsRadioOn) { stopNewsRadio('⏹️'); return; }
             newsRadioOn = true;
             newsBtn.textContent = '⏹️ إيقاف الإذاعة';
             playStadiumAmbiance();
@@ -1447,40 +1495,56 @@
         function stopNewsRadio(msg) {
             newsRadioOn = false;
             try { window.speechSynthesis.cancel(); } catch (e) {}
-            newsBtn.textContent = '📰 نشرة الأخبار';
+            newsBtn.textContent = '📻 إذاعة الكرة';
             if (msg) showStatus(msg, 'success');
         }
+        if (radioLang) radioLang.addEventListener('change', () => {
+            if (newsRadioOn) { try { window.speechSynthesis.cancel(); } catch (e) {} newsRadioCycle(); }
+        });
 
-        // Un cycle : (re)charge les news → affiche → lit → BOUCLE = radio 24/24
+        // Un cycle : articles Guardian → extrait → traduction (cache) → affichage → lecture → BOUCLE
         async function newsRadioCycle() {
             if (!newsRadioOn) return;
-            showStatus('📡 جاري تحديث الأخبار...', 'loading');
-            let items = (await fetchNews()).slice(0, 8);
-            if (items.length) lastNewsItems = items; else items = lastNewsItems;
-            if (!newsRadioOn) return;                       // arrêté pendant le fetch
-            if (!items.length) { stopNewsRadio('❌ تعذّر جلب الأخبار'); return; }
+            const lang = (radioLang && radioLang.value) || 'ar';
+            const L = RADIO_L10N[lang] || RADIO_L10N.ar;
+            showStatus(L.loading, 'loading');
+            let arts = await fetchGuardian();
+            if (arts.length) radioArticles = arts; else arts = radioArticles;
+            if (!newsRadioOn) return;
+            if (!arts.length) { stopNewsRadio(L.empty); return; }
+            arts = arts.slice(0, 5);
 
-            // Affichage des titres
+            showStatus(L.translating, 'loading');
+            const items = [];
+            for (const a of arts) {
+                if (!newsRadioOn) return;
+                const excerpt = trimText(a.body, 650);
+                let title = a.title, text = excerpt;
+                if (lang !== 'en') {
+                    const ck = lang + '|' + a.url;
+                    if (!transCache[ck]) transCache[ck] = { t: await translateText(a.title, lang), b: await translateText(excerpt, lang) };
+                    title = transCache[ck].t; text = transCache[ck].b;
+                }
+                items.push({ title, text });
+            }
+            if (!newsRadioOn) return;
+
             newsBox.style.display = 'block';
             newsBox.innerHTML =
-                '<h3 style="color:var(--g1);text-align:center;margin-bottom:12px;">📰 آخر أخبار كرة القدم — بث مستمر</h3>' +
+                '<h3 style="color:var(--g1);text-align:center;margin-bottom:12px;">' + L.boxTitle + '</h3>' +
                 items.map((it, i) =>
-                    '<p style="margin:9px 0;color:var(--g3);font-weight:600;line-height:1.6;">' +
-                    '<span style="color:var(--g1);font-weight:900;">' + (i + 1) + '.</span> ' + esc(it.title) +
-                    (it.src ? ' <span style="opacity:.6;font-size:.85em;">— ' + esc(it.src) + '</span>' : '') +
-                    '</p>'
+                    '<p style="margin:12px 0;color:var(--g3);font-weight:600;line-height:1.7;">' +
+                    '<span style="color:var(--g1);font-weight:900;">' + (i + 1) + '.</span> <b style="color:var(--g1);">' + esc(it.title) + '</b><br>' +
+                    '<span style="opacity:.85;">' + esc(it.text) + '</span></p>'
                 ).join('');
 
-            // Bulletin parlé (voix gratuite du navigateur)
-            const ord = ['الأول', 'الثاني', 'الثالث', 'الرابع', 'الخامس', 'السادس', 'السابع', 'الثامن'];
-            let s = 'نشرة أخبار كرة القدم من راديو الكرة الفاخرة بالذهب النقي، إليكم أبرز العناوين. ';
-            items.forEach((it, i) => { s += `الخبر ${ord[i] || (i + 1)}: ${it.title}. `; });
-            s += 'وإلى نشرةٍ قادمة، تحيةٌ ذهبيةٌ من اللورد سيدهم.';
+            let s = L.intro;
+            items.forEach((it, i) => { s += L.item(i + 1, it.title) + it.text + ' '; });
+            s += L.outro;
 
-            showStatus('📻 الإذاعة على الهواء مباشرةً ٢٤/٢٤', 'loading');
-            // Fin de lecture → on relance un cycle (radio en continu)
-            speakLong(s, { rate: 0.95, pitch: 1.08 }, function () {
-                if (newsRadioOn) setTimeout(newsRadioCycle, 1500);
+            showStatus(L.onair, 'loading');
+            speakLong(s, { rate: 0.96, pitch: 1.05, lang: L.voice }, function () {
+                if (newsRadioOn) setTimeout(newsRadioCycle, 2500);
             });
         }
 
@@ -1492,6 +1556,7 @@
                 showStatus('❌ لا توجد بيانات للبث الإذاعي', 'error');
                 return;
             }
+            newsRadioOn = false; if (newsBtn) newsBtn.textContent = '📻 إذاعة الكرة';   // couper l'autre voix
             const LEAGUE_AR = {
                 PL: 'الدوري الإنجليزي الممتاز', PD: 'الدوري الإسباني',
                 SA: 'الدوري الإيطالي', BL1: 'الدوري الألماني', FL1: 'الدوري الفرنسي'
@@ -1569,6 +1634,7 @@
 
         function readScores() {
             if (!matchesData.length) return;
+            newsRadioOn = false; if (newsBtn) newsBtn.textContent = '📻 إذاعة الكرة';   // couper l'autre voix
 
             let text = `راديو الكرة الفاخرة بالذهب النقي تقدم لكم نتائج اليوم. `;
             matchesData.forEach(m => {
@@ -1615,95 +1681,6 @@
             if (type === 'success') setTimeout(() => status.classList.remove('show'), 3500);
         }
 
-        /* ===================== الراديو المباشر (بث حي حقيقي) =====================
-           VRAIE radio : flux audio en direct de vraies stations (sport/foot), via
-           l'API ouverte et gratuite radio-browser.info (sans clé, sans backend).
-           Lecture continue dans <audio>. Ce n'est PAS une نشرة — c'est un flux. */
-        const RB_SERVERS = [
-            'https://de1.api.radio-browser.info',
-            'https://nl1.api.radio-browser.info',
-            'https://fi1.api.radio-browser.info',
-            'https://all.api.radio-browser.info'
-        ];
-        let stations = [];
-        let liveOn = false, liveIdx = -1;
-        const stationSelect = document.getElementById('stationSelect');
-        const liveBtn = document.getElementById('liveBtn');
-        const liveAudio = document.getElementById('liveAudio');
-        const liveNow = document.getElementById('liveNow');
-
-        async function rbGet(path) {
-            for (const srv of RB_SERVERS) {
-                try {
-                    const r = await fetch(srv + path);
-                    if (r.ok) { const j = await r.json(); if (Array.isArray(j)) return j; }
-                } catch (e) {}
-            }
-            return [];
-        }
-        async function loadStations() {
-            const qs = [
-                '/json/stations/search?tag=sports&order=clickcount&reverse=true&hidebroken=true&limit=50',
-                '/json/stations/search?tag=sport&order=clickcount&reverse=true&hidebroken=true&limit=50',
-                '/json/stations/search?tag=football&order=clickcount&reverse=true&hidebroken=true&limit=40',
-                '/json/stations/search?name=sport&order=clickcount&reverse=true&hidebroken=true&limit=40'
-            ];
-            const seen = {}, out = [];
-            for (const q of qs) {
-                (await rbGet(q)).forEach(s => {
-                    const u = s.url_resolved || s.url || '';
-                    if (!u || !/^https:/i.test(u)) return;          // HTTPS seulement (page sécurisée)
-                    if (s.hls === 1) return;                         // pas de HLS (non lu par <audio>)
-                    if (!/MP3|AAC/i.test(s.codec || '')) return;     // flux directement lisibles
-                    if (seen[s.stationuuid]) return;
-                    seen[s.stationuuid] = 1;
-                    out.push({ name: (s.name || '').trim() || 'Radio', url: u, cc: s.countrycode || '' });
-                });
-            }
-            stations = out.slice(0, 60);
-            if (!stations.length) { stationSelect.innerHTML = '<option>❌ لا توجد محطات متاحة</option>'; return; }
-            stationSelect.innerHTML = stations.map((s, i) =>
-                '<option value="' + i + '">' + esc(s.name) + (s.cc ? ' (' + esc(s.cc) + ')' : '') + '</option>'
-            ).join('');
-        }
-        function playStation(i) {
-            if (!stations.length) return;
-            if (i < 0) i = stations.length - 1;
-            if (i >= stations.length) i = 0;
-            liveIdx = i;
-            stationSelect.value = String(i);
-            liveNow.textContent = '📡 جارٍ الاتصال: ' + stations[i].name;
-            liveAudio.src = stations[i].url;
-            const p = liveAudio.play();
-            if (p && p.catch) p.catch(() => {
-                liveNow.textContent = '⚠️ المحطة لا تستجيب، التالية...';
-                setTimeout(() => playStation(i + 1), 700);
-            });
-            liveOn = true;
-            liveBtn.textContent = '⏹️ إيقاف البث';
-            if ('mediaSession' in navigator) {
-                try {
-                    navigator.mediaSession.metadata = new MediaMetadata({ title: stations[i].name, artist: 'راديو الكرة الفاخرة', album: 'بث مباشر ٢٤/٢٤' });
-                    navigator.mediaSession.setActionHandler('pause', stopStation);
-                    navigator.mediaSession.setActionHandler('play', () => playStation(liveIdx));
-                } catch (e) {}
-            }
-        }
-        function stopStation() {
-            liveOn = false;
-            try { liveAudio.pause(); liveAudio.removeAttribute('src'); liveAudio.load(); } catch (e) {}
-            liveBtn.textContent = '▶️ تشغيل البث المباشر';
-            liveNow.textContent = '';
-        }
-        liveBtn.addEventListener('click', () => {
-            if (liveOn) { stopStation(); return; }
-            if (!stations.length) { liveNow.textContent = '⏳ لم تُحمّل المحطات بعد...'; return; }
-            playStation(liveIdx >= 0 ? liveIdx : 0);
-        });
-        stationSelect.addEventListener('change', () => { if (liveOn) playStation(Number(stationSelect.value) || 0); });
-        liveAudio.addEventListener('playing', () => { if (liveOn && stations[liveIdx]) liveNow.textContent = '🔴 على الهواء مباشرةً: ' + stations[liveIdx].name; });
-        liveAudio.addEventListener('error', () => { if (liveOn) { liveNow.textContent = '⚠️ انقطع البث، المحطة التالية...'; setTimeout(() => playStation(liveIdx + 1), 800); } });
-        loadStations();
 
         window.addEventListener('load', loadData);
     </script>

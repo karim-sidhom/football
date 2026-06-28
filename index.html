@@ -716,6 +716,17 @@
         <button id="refreshBtn">🔄 تحديث فوري</button>
     </div>
 
+    <!-- RADIO EN DIRECT (vraie radio : flux audio continu) -->
+    <div class="standings" id="liveRadioBox" style="margin-top:6px;">
+        <h3 style="color:var(--g1);text-align:center;margin-bottom:14px;font-size:1.15em;">📻 الراديو المباشر — بث حي ٢٤/٢٤</h3>
+        <select id="stationSelect"><option>⏳ جاري تحميل المحطات...</option></select>
+        <div style="text-align:center;margin-top:14px;">
+            <button id="liveBtn">▶️ تشغيل البث المباشر</button>
+        </div>
+        <p id="liveNow" style="text-align:center;color:var(--g3);margin-top:12px;font-weight:700;min-height:1.2em;"></p>
+        <audio id="liveAudio" preload="none" style="display:none;"></audio>
+    </div>
+
     <div class="footer">
         <span class="footer-arabic">راديو الكرة</span>
         <span class="footer-sub">LORD SIDHOM I — THE CONCEPTOR</span>
@@ -1603,6 +1614,96 @@
             status.className = 'status show ' + type;
             if (type === 'success') setTimeout(() => status.classList.remove('show'), 3500);
         }
+
+        /* ===================== الراديو المباشر (بث حي حقيقي) =====================
+           VRAIE radio : flux audio en direct de vraies stations (sport/foot), via
+           l'API ouverte et gratuite radio-browser.info (sans clé, sans backend).
+           Lecture continue dans <audio>. Ce n'est PAS une نشرة — c'est un flux. */
+        const RB_SERVERS = [
+            'https://de1.api.radio-browser.info',
+            'https://nl1.api.radio-browser.info',
+            'https://fi1.api.radio-browser.info',
+            'https://all.api.radio-browser.info'
+        ];
+        let stations = [];
+        let liveOn = false, liveIdx = -1;
+        const stationSelect = document.getElementById('stationSelect');
+        const liveBtn = document.getElementById('liveBtn');
+        const liveAudio = document.getElementById('liveAudio');
+        const liveNow = document.getElementById('liveNow');
+
+        async function rbGet(path) {
+            for (const srv of RB_SERVERS) {
+                try {
+                    const r = await fetch(srv + path);
+                    if (r.ok) { const j = await r.json(); if (Array.isArray(j)) return j; }
+                } catch (e) {}
+            }
+            return [];
+        }
+        async function loadStations() {
+            const qs = [
+                '/json/stations/search?tag=sports&order=clickcount&reverse=true&hidebroken=true&limit=50',
+                '/json/stations/search?tag=sport&order=clickcount&reverse=true&hidebroken=true&limit=50',
+                '/json/stations/search?tag=football&order=clickcount&reverse=true&hidebroken=true&limit=40',
+                '/json/stations/search?name=sport&order=clickcount&reverse=true&hidebroken=true&limit=40'
+            ];
+            const seen = {}, out = [];
+            for (const q of qs) {
+                (await rbGet(q)).forEach(s => {
+                    const u = s.url_resolved || s.url || '';
+                    if (!u || !/^https:/i.test(u)) return;          // HTTPS seulement (page sécurisée)
+                    if (s.hls === 1) return;                         // pas de HLS (non lu par <audio>)
+                    if (!/MP3|AAC/i.test(s.codec || '')) return;     // flux directement lisibles
+                    if (seen[s.stationuuid]) return;
+                    seen[s.stationuuid] = 1;
+                    out.push({ name: (s.name || '').trim() || 'Radio', url: u, cc: s.countrycode || '' });
+                });
+            }
+            stations = out.slice(0, 60);
+            if (!stations.length) { stationSelect.innerHTML = '<option>❌ لا توجد محطات متاحة</option>'; return; }
+            stationSelect.innerHTML = stations.map((s, i) =>
+                '<option value="' + i + '">' + esc(s.name) + (s.cc ? ' (' + esc(s.cc) + ')' : '') + '</option>'
+            ).join('');
+        }
+        function playStation(i) {
+            if (!stations.length) return;
+            if (i < 0) i = stations.length - 1;
+            if (i >= stations.length) i = 0;
+            liveIdx = i;
+            stationSelect.value = String(i);
+            liveNow.textContent = '📡 جارٍ الاتصال: ' + stations[i].name;
+            liveAudio.src = stations[i].url;
+            const p = liveAudio.play();
+            if (p && p.catch) p.catch(() => {
+                liveNow.textContent = '⚠️ المحطة لا تستجيب، التالية...';
+                setTimeout(() => playStation(i + 1), 700);
+            });
+            liveOn = true;
+            liveBtn.textContent = '⏹️ إيقاف البث';
+            if ('mediaSession' in navigator) {
+                try {
+                    navigator.mediaSession.metadata = new MediaMetadata({ title: stations[i].name, artist: 'راديو الكرة الفاخرة', album: 'بث مباشر ٢٤/٢٤' });
+                    navigator.mediaSession.setActionHandler('pause', stopStation);
+                    navigator.mediaSession.setActionHandler('play', () => playStation(liveIdx));
+                } catch (e) {}
+            }
+        }
+        function stopStation() {
+            liveOn = false;
+            try { liveAudio.pause(); liveAudio.removeAttribute('src'); liveAudio.load(); } catch (e) {}
+            liveBtn.textContent = '▶️ تشغيل البث المباشر';
+            liveNow.textContent = '';
+        }
+        liveBtn.addEventListener('click', () => {
+            if (liveOn) { stopStation(); return; }
+            if (!stations.length) { liveNow.textContent = '⏳ لم تُحمّل المحطات بعد...'; return; }
+            playStation(liveIdx >= 0 ? liveIdx : 0);
+        });
+        stationSelect.addEventListener('change', () => { if (liveOn) playStation(Number(stationSelect.value) || 0); });
+        liveAudio.addEventListener('playing', () => { if (liveOn && stations[liveIdx]) liveNow.textContent = '🔴 على الهواء مباشرةً: ' + stations[liveIdx].name; });
+        liveAudio.addEventListener('error', () => { if (liveOn) { liveNow.textContent = '⚠️ انقطع البث، المحطة التالية...'; setTimeout(() => playStation(liveIdx + 1), 800); } });
+        loadStations();
 
         window.addEventListener('load', loadData);
     </script>
